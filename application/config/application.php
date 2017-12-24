@@ -100,7 +100,7 @@ return [
 	],
 
 	'errors' => [
-		'devmode' 		=> 1,
+		'devmode' 		=> 0,
 		'enable_timer' 	=> 0,
 	],
 
