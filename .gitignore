@@ -1,0 +1,8 @@
+/.settings/
+/.buildpath
+/.project
+.idea/
+/tmp/session*
+/vendor
+composer.phar
+composer.lock
