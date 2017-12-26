@@ -68,6 +68,24 @@ class WeatherProvider extends RestfulController
 			$xml = $response->data;
 			$xml->addChild('results', $xml['num_results']);
 			unset($xml['num_results']);
+			foreach($xml->TAF as $taf)
+			{
+				foreach($taf->forecast as $forecast)
+				{
+					$sky = $forecast->sky_condition;
+					if(count($sky) == 0) continue;
+					$unsetters = [];
+					foreach($sky->attributes() as $key => $value)
+					{
+						$sky->addChild($key, $value);
+						$unsetters[] = $key;
+					}
+					foreach($unsetters as $attribute)
+					{
+						unset($sky[$attribute]);
+					}
+				}
+			}
 			return Json::success($xml);
 		}
 		catch(RestException $e)
