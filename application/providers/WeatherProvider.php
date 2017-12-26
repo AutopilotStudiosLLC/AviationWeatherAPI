@@ -8,17 +8,19 @@ use Staple\Rest\Rest;
 
 class WeatherProvider extends RestfulController
 {
+	const HTTP_SOURCE_ROOT = 'https://aviationweather.gov/adds/dataserver_current/httpparam';
+
 	public function _start()
 	{
 		$this->addAccessControlOrigin('*');
 		$this->addAccessControlMethods([Request::METHOD_GET, Request::METHOD_OPTIONS]);
 	}
 
-	public function getMetar($ident, $hoursBeforeNow = 3)
+	public function getMetar($ident = 'KSEA', $hoursBeforeNow = 3)
 	{
 		try
 		{
-			$response = Rest::get('https://aviationweather.gov/adds/dataserver_current/httpparam', [
+			$response = Rest::get(self::HTTP_SOURCE_ROOT, [
 				'dataSource' => 'metars',
 				'requestType' => 'retrieve',
 				'format' => 'xml',
@@ -43,6 +45,29 @@ class WeatherProvider extends RestfulController
 					unset($sky[$attribute]);
 				}
 			}
+			return Json::success($xml);
+		}
+		catch(RestException $e)
+		{
+			return Json::error($e->getMessage());
+		}
+	}
+
+	public function getTaf($ident = 'KSEA', $hoursBeforeNow = 4)
+	{
+		try
+		{
+			$response = Rest::get(self::HTTP_SOURCE_ROOT, [
+				'dataSource' => 'tafs',
+				'requestType' => 'retrieve',
+				'format' => 'xml',
+				'stationString' => strtoupper((string)$ident),
+				'hoursBeforeNow' => (int)$hoursBeforeNow
+			]);
+			/** @var SimpleXMLElement $xml */
+			$xml = $response->data;
+			$xml->addChild('results', $xml['num_results']);
+			unset($xml['num_results']);
 			return Json::success($xml);
 		}
 		catch(RestException $e)
