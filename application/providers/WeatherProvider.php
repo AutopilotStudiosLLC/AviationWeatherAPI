@@ -22,7 +22,7 @@ class WeatherProvider extends RestfulController
 				'dataSource' => 'metars',
 				'requestType' => 'retrieve',
 				'format' => 'xml',
-				'stationString' => (string)$ident,
+				'stationString' => strtoupper((string)$ident),
 				'hoursBeforeNow' => (int)$hoursBeforeNow
 			]);
 			/** @var SimpleXMLElement $xml */
