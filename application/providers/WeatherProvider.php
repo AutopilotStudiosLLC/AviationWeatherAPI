@@ -34,6 +34,7 @@ class WeatherProvider extends RestfulController
 			foreach($xml->METAR as $metar)
 			{
 				$sky = $metar->sky_condition;
+				if(count($sky) == 0) continue;
 				$unsetters = [];
 				foreach($sky->attributes() as $key=>$value)
 				{
