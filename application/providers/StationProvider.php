@@ -25,7 +25,7 @@ class StationProvider extends RestfulController
 	 * @param $ident
 	 * @return mixed
 	 */
-	public function getIndex($ident)
+	public function getInfo($ident)
 	{
 		try
 		{
