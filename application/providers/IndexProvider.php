@@ -7,6 +7,13 @@ class IndexProvider extends RestfulController
 {
 	public function getIndex()
 	{
-		return Json::success('Welcome to the Aviation Weather API');
+		$obj = new stdClass();
+		$obj->message = 'Welcome to the Aviation Weather API';
+		$obj->apis = [
+			'metars' => '/metar',
+			'stations' => '/station',
+			'tafs' => '/taf'
+		];
+		return Json::success($obj);
 	}
 }
