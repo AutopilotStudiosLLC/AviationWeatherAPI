@@ -46,4 +46,35 @@ class StationProvider extends RestfulController
 			return Json::error($e->getMessage());
 		}
 	}
+
+	/**
+	 * Get local METAR data
+	 * @return null|string
+	 */
+	public function getLocal()
+	{
+		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 3);
+		$distance = (int)$_GET['distance'] ?? null;
+		$latitude = (float)$_GET['latitude'] ?? null;
+		$longitude = (float)$_GET['longitude'] ?? null;
+		try
+		{
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
+				'dataSource' => 'stations',
+				'requestType' => 'retrieve',
+				'format' => 'xml',
+				'radialDistance' => $distance.';'.$longitude.','.$latitude,
+				'hoursBeforeNow' => (int)$hoursBeforeNow
+			]);
+			/** @var SimpleXMLElement $xml */
+			$xml = $response->data;
+			$xml->addChild('results', $xml['num_results']);
+			unset($xml['num_results']);
+			return Json::success($xml);
+		}
+		catch(RestException $e)
+		{
+			return Json::error($e->getMessage());
+		}
+	}
 }
