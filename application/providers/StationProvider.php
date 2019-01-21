@@ -21,6 +21,18 @@ class StationProvider extends RestfulController
 		$this->addAccessControlMethods([Request::METHOD_GET, Request::METHOD_OPTIONS]);
 	}
 
+	public function getIndex()
+	{
+		$obj = new stdClass();
+		$obj->message = 'Station Resource';
+		$obj->apis = [
+			'info' => '/station/info/[station]',
+			'list' => '/station/list?stations=KDEN,KLAX',
+			'local' => '/station/local?distance=50&latitude=39&longitude=-104',
+		];
+		return Json::success($obj);
+	}
+
 	/**
 	 * @param $ident
 	 * @return mixed
@@ -64,6 +76,31 @@ class StationProvider extends RestfulController
 				'requestType' => 'retrieve',
 				'format' => 'xml',
 				'radialDistance' => $distance.';'.$longitude.','.$latitude,
+				'hoursBeforeNow' => (int)$hoursBeforeNow
+			]);
+			/** @var SimpleXMLElement $xml */
+			$xml = $response->data;
+			$xml->addChild('results', $xml['num_results']);
+			unset($xml['num_results']);
+			return Json::success($xml);
+		}
+		catch(RestException $e)
+		{
+			return Json::error($e->getMessage());
+		}
+	}
+
+	public function getList()
+	{
+		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 3);
+		$stationString = (string)($_GET['stations'] ?? '');
+		try
+		{
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
+				'dataSource' => 'stations',
+				'requestType' => 'retrieve',
+				'format' => 'xml',
+				'stationString' => $stationString,
 				'hoursBeforeNow' => (int)$hoursBeforeNow
 			]);
 			/** @var SimpleXMLElement $xml */

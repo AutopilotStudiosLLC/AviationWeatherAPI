@@ -19,6 +19,17 @@ class MetarProvider extends RestfulController
 		$this->addAccessControlMethods([Request::METHOD_GET, Request::METHOD_OPTIONS]);
 	}
 
+	public function getIndex()
+	{
+		$obj = new stdClass();
+		$obj->message = 'METAR Resource';
+		$obj->apis = [
+			'recent' => '/metar/recent/[station]',
+			'local' => '/metar/local?distance=50&latitude=39&longitude=-104',
+		];
+		return Json::success($obj);
+	}
+
 	/**
 	 * Get local METAR data
 	 * @return null|string
