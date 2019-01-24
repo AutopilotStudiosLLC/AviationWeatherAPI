@@ -145,6 +145,24 @@ class MetarProvider extends RestfulController
 			$xml = $response->data;
 			$xml->addChild('results', $xml['num_results']);
 			unset($xml['num_results']);
+			foreach($xml->METAR as $metar)
+			{
+				$sky = $metar->sky_condition;
+				if(count($sky) == 0) continue;
+				foreach($sky as $condition)
+				{
+					$unsetters = [];
+					foreach($condition->attributes() as $key => $value)
+					{
+						$condition->addChild($key, $value);
+						$unsetters[] = $key;
+					}
+					foreach($unsetters as $attribute)
+					{
+						unset($condition[$attribute]);
+					}
+				}
+			}
 			return Json::success($xml);
 		}
 		catch(RestException $e)
