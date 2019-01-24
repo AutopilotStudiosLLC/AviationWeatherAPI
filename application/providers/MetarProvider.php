@@ -26,6 +26,7 @@ class MetarProvider extends RestfulController
 		$obj->apis = [
 			'recent' => '/metar/recent/[station]',
 			'local' => '/metar/local?distance=50&latitude=39&longitude=-104',
+			'list' => '/metar/list?stations=KDEN,KLAX',
 		];
 		return Json::success($obj);
 	}
@@ -115,6 +116,35 @@ class MetarProvider extends RestfulController
 					}
 				}
 			}
+			return Json::success($xml);
+		}
+		catch(RestException $e)
+		{
+			return Json::error($e->getMessage());
+		}
+	}
+
+	/**
+	 * Get a list of Metars based on a list of stations.
+	 * @return null|string
+	 */
+	public function getList()
+	{
+		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 3);
+		$stationString = (string)($_GET['stations'] ?? '');
+		try
+		{
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
+				'dataSource' => 'metars',
+				'requestType' => 'retrieve',
+				'format' => 'xml',
+				'stationString' => $stationString,
+				'hoursBeforeNow' => (int)$hoursBeforeNow
+			]);
+			/** @var SimpleXMLElement $xml */
+			$xml = $response->data;
+			$xml->addChild('results', $xml['num_results']);
+			unset($xml['num_results']);
 			return Json::success($xml);
 		}
 		catch(RestException $e)
