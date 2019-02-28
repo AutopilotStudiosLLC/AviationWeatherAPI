@@ -72,16 +72,18 @@ class WeatherProvider extends RestfulController
 				foreach($taf->forecast as $forecast)
 				{
 					$sky = $forecast->sky_condition;
-					if(count($sky) == 0) continue;
-					$unsetters = [];
-					foreach($sky->attributes() as $key => $value)
+					foreach($sky as $condition)
 					{
-						$sky->addChild($key, $value);
-						$unsetters[] = $key;
-					}
-					foreach($unsetters as $attribute)
-					{
-						unset($sky[$attribute]);
+						$unsetters = [];
+						foreach($condition->attributes() as $key => $value)
+						{
+							$condition->addChild($key, $value);
+							$unsetters[] = $key;
+						}
+						foreach($unsetters as $attribute)
+						{
+							unset($condition[$attribute]);
+						}
 					}
 				}
 			}
