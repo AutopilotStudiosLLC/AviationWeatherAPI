@@ -29,12 +29,15 @@ class TafProvider extends RestfulController
 	{
 		try
 		{
+			$mostRecent = ($_GET['mostRecent'] === 'true') ? 'true' : 'false';
+
 			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
 				'dataSource' => 'tafs',
 				'requestType' => 'retrieve',
 				'format' => 'xml',
 				'stationString' => strtoupper((string)$identifier),
-				'hoursBeforeNow' => (int)$hoursBeforeNow
+				'hoursBeforeNow' => (int)$hoursBeforeNow,
+				'mostRecent' => $mostRecent,
 			]);
 			/** @var SimpleXMLElement $xml */
 			$xml = $response->data;
