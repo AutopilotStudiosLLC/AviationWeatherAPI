@@ -27,6 +27,7 @@ class MetarProvider extends RestfulController
 			'recent' => '/metar/recent/[station]',
 			'local' => '/metar/local?distance=50&latitude=39&longitude=-104',
 			'list' => '/metar/list?stations=KDEN,KLAX',
+			'flight' => '/metar/flight?corridor=60&path=KDEN;KLAX',
 		];
 		return Json::success($obj);
 	}
@@ -139,6 +140,54 @@ class MetarProvider extends RestfulController
 				'requestType' => 'retrieve',
 				'format' => 'xml',
 				'stationString' => $stationString,
+				'hoursBeforeNow' => (int)$hoursBeforeNow
+			]);
+			/** @var SimpleXMLElement $xml */
+			$xml = $response->data;
+			$xml->addChild('results', $xml['num_results']);
+			unset($xml['num_results']);
+			foreach($xml->METAR as $metar)
+			{
+				$sky = $metar->sky_condition;
+				if(count($sky) == 0) continue;
+				foreach($sky as $condition)
+				{
+					$unsetters = [];
+					foreach($condition->attributes() as $key => $value)
+					{
+						$condition->addChild($key, $value);
+						$unsetters[] = $key;
+					}
+					foreach($unsetters as $attribute)
+					{
+						unset($condition[$attribute]);
+					}
+				}
+			}
+			return Json::success($xml);
+		}
+		catch(RestException $e)
+		{
+			return Json::error($e->getMessage());
+		}
+	}
+
+	/**
+	 * Get a list of Metars based on a list of stations.
+	 * @return null|string
+	 */
+	public function getFlight()
+	{
+		$corridorWidth = (float)($_GET['corridor'] ?? 60);
+		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 2);
+		$flightPath = (string)($_GET['path'] ?? '');
+		try
+		{
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
+				'dataSource' => 'metars',
+				'requestType' => 'retrieve',
+				'format' => 'xml',
+				'flightPath' => $corridorWidth.';'.$flightPath,
 				'hoursBeforeNow' => (int)$hoursBeforeNow
 			]);
 			/** @var SimpleXMLElement $xml */
