@@ -29,6 +29,7 @@ class StationProvider extends RestfulController
 			'info' => '/station/info/[station]',
 			'list' => '/station/list?stations=KDEN,KLAX',
 			'local' => '/station/local?distance=50&latitude=39&longitude=-104',
+			'flight' => '/station/flight?path=KDEN;KLAX&corridor=50',
 		];
 		return Json::success($obj);
 	}
@@ -102,6 +103,35 @@ class StationProvider extends RestfulController
 				'format' => 'xml',
 				'stationString' => $stationString,
 				'hoursBeforeNow' => (int)$hoursBeforeNow
+			]);
+			/** @var SimpleXMLElement $xml */
+			$xml = $response->data;
+			$xml->addChild('results', $xml['num_results']);
+			unset($xml['num_results']);
+			return Json::success($xml);
+		}
+		catch(RestException $e)
+		{
+			return Json::error($e->getMessage());
+		}
+	}
+
+	/**
+	 * Get stations available along specified flight path.
+	 * @return string|null
+	 */
+	public function getFlight()
+	{
+		$corridorWidth = (float)($_GET['corridor'] ?? 60);
+		$flightPath = (string)($_GET['path'] ?? '');
+
+		try
+		{
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
+				'dataSource' => 'stations',
+				'requestType' => 'retrieve',
+				'format' => 'xml',
+				'flightPath' => $corridorWidth.';'.$flightPath,
 			]);
 			/** @var SimpleXMLElement $xml */
 			$xml = $response->data;

@@ -70,4 +70,55 @@ class TafProvider extends RestfulController
 			return Json::error($e->getMessage());
 		}
 	}
+
+	/**
+	 * Get TAF data along a flight path
+	 * @return null|string
+	 */
+	public function getFlight()
+	{
+		$corridorWidth = (float)($_GET['corridor'] ?? 60);
+		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 2);
+		$flightPath = (string)($_GET['path'] ?? '');
+
+		try
+		{
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
+				'dataSource' => 'tafs',
+				'requestType' => 'retrieve',
+				'format' => 'xml',
+				'flightPath' => $corridorWidth.';'.$flightPath,
+				'hoursBeforeNow' => (int)$hoursBeforeNow
+			]);
+			/** @var SimpleXMLElement $xml */
+			$xml = $response->data;
+			$xml->addChild('results', $xml['num_results']);
+			unset($xml['num_results']);
+			foreach($xml->TAF as $taf)
+			{
+				foreach($taf->forecast as $forecast)
+				{
+					$sky = $forecast->sky_condition;
+					foreach($sky as $condition)
+					{
+						$unsetters = [];
+						foreach($condition->attributes() as $key => $value)
+						{
+							$condition->addChild($key, $value);
+							$unsetters[] = $key;
+						}
+						foreach($unsetters as $attribute)
+						{
+							unset($condition[$attribute]);
+						}
+					}
+				}
+			}
+			return Json::success($xml);
+		}
+		catch(RestException $e)
+		{
+			return Json::error($e->getMessage());
+		}
+	}
 }
