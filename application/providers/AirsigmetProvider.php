@@ -57,7 +57,6 @@ class AirsigmetProvider extends RestfulController
 			{
 				//Altitude
 				$alt = $airsigmet->altitude;
-				if(count($alt) == 0) continue;
 				foreach($alt as $condition)
 				{
 					$unsetters = [];
@@ -74,7 +73,6 @@ class AirsigmetProvider extends RestfulController
 
 				//Hazard
 				$hazard = $airsigmet->hazard;
-				if(count($hazard) == 0) continue;
 				foreach($hazard as $condition)
 				{
 					$unsetters = [];
@@ -91,7 +89,6 @@ class AirsigmetProvider extends RestfulController
 
 				//Hazard
 				$hazard = $airsigmet->hazard;
-				if(count($hazard) == 0) continue;
 				foreach($hazard as $condition)
 				{
 					$unsetters = [];
@@ -108,7 +105,6 @@ class AirsigmetProvider extends RestfulController
 
 				//Area
 				$area = $airsigmet->area;
-				if(count($area) == 0) continue;
 				foreach($area as $condition)
 				{
 					$unsetters = [];

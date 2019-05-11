@@ -53,9 +53,41 @@ class PirepProvider extends RestfulController
 			unset($xml['num_results']);
 			foreach($xml->AircraftReport as $pirep)
 			{
+				//Turbulence
 				$turb = $pirep->turbulence_condition;
-				if(count($turb) == 0) continue;
 				foreach($turb as $condition)
+				{
+					$unsetters = [];
+					foreach($condition->attributes() as $key => $value)
+					{
+						$condition->addChild($key, $value);
+						$unsetters[] = $key;
+					}
+					foreach($unsetters as $attribute)
+					{
+						unset($condition[$attribute]);
+					}
+				}
+
+				//Icing
+				$ice = $pirep->icing_condition;
+				foreach($ice as $condition)
+				{
+					$unsetters = [];
+					foreach($condition->attributes() as $key => $value)
+					{
+						$condition->addChild($key, $value);
+						$unsetters[] = $key;
+					}
+					foreach($unsetters as $attribute)
+					{
+						unset($condition[$attribute]);
+					}
+				}
+
+				//Sky Conditions
+				$sky = $pirep->sky_condition;
+				foreach($sky as $condition)
 				{
 					$unsetters = [];
 					foreach($condition->attributes() as $key => $value)
