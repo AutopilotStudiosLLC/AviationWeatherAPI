@@ -19,6 +19,9 @@ class MetarProvider extends RestfulController
 		$this->addAccessControlMethods([Request::METHOD_GET, Request::METHOD_OPTIONS]);
 	}
 
+	/**
+	 * @return string|null
+	 */
 	public function getIndex()
 	{
 		$obj = new stdClass();
