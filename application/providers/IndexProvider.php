@@ -12,7 +12,9 @@ class IndexProvider extends RestfulController
 		$obj->apis = [
 			'metars' => '/metar',
 			'stations' => '/station',
-			'tafs' => '/taf'
+			'tafs' => '/taf',
+			'pirep' => '/pirep',
+			'airsigmet' => '/airsigmet'
 		];
 		return Json::success($obj);
 	}
