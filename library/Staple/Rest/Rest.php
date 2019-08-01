@@ -103,7 +103,7 @@ class Rest
 	 * @param $url
 	 * @param array $data
 	 * @param array $headers
-	 * @return RestResponse|null
+	 * @return RestResponse|\SimpleXMLElement|null
 	 * @throws RestException
 	 */
 	public static function get($url, $data = array(), array $headers = [])
