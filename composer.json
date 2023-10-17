@@ -2,7 +2,7 @@
   "require": {
     "ext-curl": "*",
     "twig/twig":"~2.0",
-    "phpunit/phpunit": "~6.0",
+    "phpunit/phpunit": "~8.0",
     "predis/predis":"1.1.*@dev",
     "codacy/coverage": "dev-master",
     "auth0/auth0-php": "^5.0",

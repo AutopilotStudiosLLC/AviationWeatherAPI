@@ -2,5 +2,5 @@
 
 class AddsModel
 {
-	const HTTP_SOURCE_ROOT = 'https://aviationweather.gov/adds/dataserver_current/httpparam';
+	const HTTP_SOURCE_ROOT = 'https://aviationweather.gov/cgi-bin/data/dataserver.php';
 }
