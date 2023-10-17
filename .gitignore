@@ -5,3 +5,4 @@
 /tmp/session*
 /vendor
 composer.phar
+composer.lock
