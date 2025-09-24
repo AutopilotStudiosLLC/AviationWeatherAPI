@@ -22,16 +22,18 @@
  */
 namespace Staple\Controller;
 
-use Exception;
 use Staple\Auth\Auth;
 use Staple\Auth\AuthHelpers;
 use Staple\Autoload;
 use Staple\Config;
 use Staple\Error;
 use Staple\Exception\AuthException;
+use Staple\Exception\ConfigurationException;
+use Staple\Exception\RoutingException;
 use Staple\Layout;
 use Staple\Route;
 use Staple\Traits\Helpers;
+use ReflectionException, ReflectionMethod, ReflectionClass;
 
 abstract class Controller
 {
@@ -49,6 +51,7 @@ abstract class Controller
 	 * Controller constructor creates an instance of View and saves it in the $view
 	 * property. It then calls the overridable method _start() for additional boot time
 	 * procedures.
+	 * @throws ConfigurationException
 	 */
 	public function __construct()
 	{
@@ -81,22 +84,24 @@ abstract class Controller
 	 * before being dispatched from the front controller.
 	 * @param string $method
 	 * @return bool
-	 * @throws Exception
+	 * @throws AuthException
+	 * @throws RoutingException
+	 * @throws ReflectionException
 	 */
 	public function _auth($method)
 	{
 		$method = (string)$method;
-		if(!ctype_alnum($method))
+		if(!ctype_alnum(str_ireplace('_', '', $method)))
 		{
-			throw new Exception('Authentication Validation Error', Error::AUTH_ERROR);
+			throw new AuthException('Authentication Validation Error', Error::AUTH_ERROR);
 		}
 		else
 		{
 			if(method_exists($this,$method))
 			{
 				$auth = Auth::get();
-				$reflectMethod = new \ReflectionMethod($this, $method);
-				$reflectClass = new \ReflectionClass($this);
+				$reflectMethod = new ReflectionMethod($this, $method);
+				$reflectClass = new ReflectionClass($this);
 				$classComments = $reflectClass->getDocComment();
 				$methodComments = $reflectMethod->getDocComment();
 
@@ -105,7 +110,7 @@ abstract class Controller
 				if(stripos($classComments, Auth::AUTH_FLAG_LEVEL) !== false)
 				{
 					$levelSplit = explode(Auth::AUTH_FLAG_LEVEL, $classComments);
-					$eolSplit = explode($levelSplit[1], '\n');
+					$eolSplit = explode(PHP_EOL, $levelSplit[1]);
 					$authLevel = trim($eolSplit[0]);
 					$routeAuth = $auth->authRoute(Route::create([str_ireplace(Autoload::CONTROLLER_SUFFIX, '', $reflectClass->getName()),$method]), $authLevel, $reflectClass, $reflectMethod);
 
@@ -113,7 +118,7 @@ abstract class Controller
 				elseif(stripos($methodComments, Auth::AUTH_FLAG_LEVEL) !== false)
 				{
 					$levelSplit = explode(Auth::AUTH_FLAG_LEVEL, $methodComments);
-					$eolSplit = explode($levelSplit[1], '\n');
+					$eolSplit = explode(PHP_EOL, $levelSplit[1]);
 					$authLevel = trim($eolSplit[0]);
 					$routeAuth = $auth->authRoute(Route::create([str_ireplace(Autoload::CONTROLLER_SUFFIX, '', $reflectClass->getName()),$method]), $authLevel, $reflectClass, $reflectMethod);
 				}

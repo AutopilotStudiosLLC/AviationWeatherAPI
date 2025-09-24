@@ -24,15 +24,11 @@
  */
 namespace Staple;
 
+require_once 'Traits/Singleton.php';
+
 use Exception;
 use Staple\Exception\ConfigurationException;
 use stdClass;
-
-/**
-* Added to include Singleton Trait once so Config class will load with out autoloader being started.
-*/
-require_once STAPLE_ROOT . 'Traits' . DIRECTORY_SEPARATOR . 'Singleton.php';
-require_once STAPLE_ROOT . 'Exception' . DIRECTORY_SEPARATOR . 'ConfigurationException.php';
 
 class Config
 {
@@ -61,8 +57,9 @@ class Config
 	/**
 	 * Disable construction of this object.
 	 * @param string $configName
+	 * @throws ConfigurationException
 	 */
-	public function __construct($configName = NULL)
+	private function __construct($configName = NULL)
 	{
 		$this->read = false;
 		if(isset($configName))
@@ -96,9 +93,11 @@ class Config
 	
 	/**
 	 * Setting config values during runtime are not allowed.
+	 * @param string $name
+	 * @param mixed $value
 	 * @throws Exception
 	 */
-	public function __set($name,$value)
+	public function __set($name, $value)
 	{
 		throw new ConfigurationException('Config changes are not allowed at execution',Error::APPLICATION_ERROR);
 	}
@@ -162,16 +161,10 @@ class Config
 	 * @throws ConfigurationException
 	 * @return mixed
 	 */
-	public static function getValue($set,$key, $throwOnError = true)
+	public static function getValue(string $set, string $key, bool $throwOnError = true)
 	{
 		//Get the config instance
 		$inst = static::getInstance();
-		
-		//Check that the config file has been read.
-		if(!$inst->read)
-		{
-			$inst->read();
-		}
 		
 		//Look for the requested key in the data store.
 		if(array_key_exists($set, $inst->store))
@@ -202,6 +195,7 @@ class Config
 	 * @param $set
 	 * @param null $key
 	 * @return bool
+	 * @throws ConfigurationException
 	 */
     public static function exists($set,$key = null)
     {
@@ -235,6 +229,7 @@ class Config
 	 * @param string $key
 	 * @param mixed $value
 	 * @return bool
+	 * @throws ConfigurationException
 	 */
 	public static function setValue($set,$key,$value)
 	{
@@ -260,6 +255,7 @@ class Config
 	
 	/**
 	 * Read and store the application.ini, application.php or specified config file.
+	 * @throws ConfigurationException
 	 */
 	private function read()
 	{
@@ -313,6 +309,7 @@ class Config
 	 * Change config sets.
 	 * @param string $configSet
 	 * @return $this
+	 * @throws ConfigurationException
 	 */
 	protected function setConfigSet($configSet)
 	{
@@ -326,6 +323,7 @@ class Config
 	 * Change the configuration file in use by the application.
 	 * @param $configSet
 	 * @return $this
+	 * @throws ConfigurationException
 	 */
 	public static function changeEnvironment($configSet)
 	{

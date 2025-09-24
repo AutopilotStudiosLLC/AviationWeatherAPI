@@ -1,12 +1,11 @@
 {
   "require": {
     "ext-curl": "*",
-    "twig/twig":"~2.0",
-    "phpunit/phpunit": "~8.0",
+    "twig/twig":"v3.21.1",
+    "phpunit/phpunit": "~11.5.36",
     "predis/predis":"1.1.*@dev",
-    "codacy/coverage": "dev-master",
     "auth0/auth0-php": "^5.0",
-    "php-curl-class/php-curl-class": "^8.0",
+    "php-curl-class/php-curl-class": "^9.19.2",
     "ext-SimpleXML": "*"
   }
 }

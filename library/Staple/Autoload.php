@@ -23,11 +23,19 @@
  */
 namespace Staple;
 
+require_once 'Traits/Factory.php';
+require_once 'Alias.php';
+require_once 'Error.php';
+require_once 'Exception/PageNotFoundException.php';
+
 use Exception;
 use Staple\Exception\PageNotFoundException;
+use Staple\Traits\Factory;
 
 class Autoload
 {
+	use Factory;
+
     const STAPLE_NAMESPACE = 'Staple';
 	const CONTROLLER_SUFFIX = 'Controller';
 	const PROVIDER_SUFFIX = 'Provider';
@@ -40,66 +48,66 @@ class Autoload
 	 * Controller Class Suffix Value
 	 * @var string
 	 */
-	protected $providerSuffix;
+	protected string $providerSuffix;
 	/**
 	 * Array of search directories for the models
 	 * @var array[string]
 	 */
-	protected $providerSearchDirectories = array();
+	protected array $providerSearchDirectories = [];
 	/**
 	 * Controller Class Suffix Value
 	 * @var string
 	 */
-	protected $controllerSuffix;
+	protected string $controllerSuffix;
 	/**
 	 * Array of search directories for the models
 	 * @var array[string]
 	 */
-	protected $controllerSearchDirectories = array();
+	protected array $controllerSearchDirectories = [];
 	/**
 	 * Form Class Suffix Value
 	 * @var string
 	 */
-	protected $formSuffix;
+	protected string $formSuffix;
 	/**
 	 * Array of search directories for the models
 	 * @var array[string]
 	 */
-	protected $formSearchDirectories = array();
+	protected array $formSearchDirectories = [];
 	/**
 	 * Model Class Suffix Value
 	 * @var string
 	 */
-	protected $modelSuffix;
+	protected string $modelSuffix;
 	
 	/**
 	 * Array of search directories for the models
 	 * @var array[string]
 	 */
-	protected $modelSearchDirectories = array();
+	protected array $modelSearchDirectories = [];
 	/**
 	 * Array of search directories for the views
 	 * @var array[string]
 	 */
-	protected $viewSearchDirectories = array();
+	protected array $viewSearchDirectories = [];
 	
 	/**
 	 * Array of search directories for the views
 	 * @var array[string]
 	 */
-	protected $layoutSearchDirectories = array();
+	protected array $layoutSearchDirectories = [];
 	
 	/**
 	 * Booleon: On loader failure throw an exception
 	 * @var bool
 	 */
-	protected $throwOnFailure = true;
+	protected bool $throwOnFailure = true;
 	/**
 	 * Automatically loads class files for the application.
 	 * @param bool $throwOnLoaderFailure
 	 * @throws Exception
 	 */
-	public function __construct($throwOnLoaderFailure = true)
+	public function __construct(bool $throwOnLoaderFailure = true)
 	{
 		if($throwOnLoaderFailure === false)
 		{
@@ -138,32 +146,36 @@ class Autoload
 	/**
 	 * Load a class into the application
 	 * @param string $class_name
-	 * @throws Exception
 	 * @return bool
+	 *@throws Exception
 	 */
-	public function load($class_name)
+	public function load(string $class_name): bool
 	{
 		//Check for an aliased class name
 		if(!is_null($namespacedClass = Alias::checkAlias($class_name)))					//Look for aliased classes
 		{
-    			return $this->loadLibraryClass($namespacedClass, $class_name);
+            return $this->loadAliasClass($namespacedClass, $class_name);
 		}
-		elseif(substr($class_name,strlen($class_name)-strlen($this->getProviderSuffix()),strlen($this->getProviderSuffix())) == $this->getProviderSuffix()
+		elseif(str_starts_with($class_name, 'Staple\\'))
+		{
+			return $this->loadLibraryClass($class_name);
+		}
+		elseif(str_ends_with($class_name, $this->getProviderSuffix())
 			&& strlen($class_name) != strlen($this->getProviderSuffix()))				//Look for Providers
 		{
 			return $this->loadProvider($class_name);
 		}
-		elseif(substr($class_name,strlen($class_name)-strlen($this->getControllerSuffix()),strlen($this->getControllerSuffix())) == $this->getControllerSuffix() 
+		elseif(str_ends_with($class_name, $this->getControllerSuffix())
 			&& strlen($class_name) != strlen($this->getControllerSuffix()))				//Look for Controllers
 		{
 			return $this->loadController($class_name);
 		}
-		elseif(substr($class_name,strlen($class_name)-strlen($this->getModelSuffix()),strlen($this->getModelSuffix())) == $this->getModelSuffix()
+		elseif(str_ends_with($class_name, $this->getModelSuffix())
 			&& strlen($class_name) != strlen($this->getModelSuffix()))					//Look for Models
 		{
 			return $this->loadModel($class_name);
 		}
-		elseif(substr($class_name,strlen($class_name)-strlen($this->getFormSuffix()),strlen($this->getFormSuffix())) == $this->getFormSuffix()
+		elseif(str_ends_with($class_name, $this->getFormSuffix())
 			&& strlen($class_name) != strlen($this->getFormSuffix()))					//Look for Forms
 		{
 			return $this->loadForm($class_name);
@@ -171,19 +183,12 @@ class Autoload
 		else																			//Look for other elements
 		{
 			//Correct for a leading \ character
-			if(substr($class_name, 0,1) == '\\') $class_name = substr($class_name, 1);
-			
-			//Split the class into it's namespace components.
-			$namespace = explode('\\',$class_name);
+			if(str_starts_with($class_name, '\\')) $class_name = substr($class_name, 1);
 
 			//Correct for paths in Linux and Windows
 			$pathname = str_replace('\\',DIRECTORY_SEPARATOR,$class_name);
 
-			if($namespace[0] == static::STAPLE_NAMESPACE)
-			{
-				return $this->loadLibraryClass($class_name);
-			}
-			elseif(file_exists(MODULES_ROOT.$pathname.static::PHP_FILE_EXTENSION))
+			if(file_exists(MODULES_ROOT.$pathname.static::PHP_FILE_EXTENSION))
 			{
 				require_once MODULES_ROOT.$pathname.static::PHP_FILE_EXTENSION;
 			}
@@ -202,14 +207,14 @@ class Autoload
 	/**
 	 * Loads a class from the library folder.
 	 * @param string $class_name
-	 * @param string $alias
-	 * @throws Exception
+	 * @param string|null $alias
 	 * @return boolean
+	 *@throws Exception
 	 */
-	protected function loadLibraryClass($class_name, $alias = NULL)
-	{
+	protected function loadAliasClass(string $class_name, string $alias = NULL): bool
+    {
 		//Correct for a leading \ character
-		if(substr($class_name, 0,1) == '\\') $class_name = substr($class_name, 1);
+		if(str_starts_with($class_name, '\\')) $class_name = substr($class_name, 1);
 		
 		//Split the class into it's namespace components.
 		$namespace = explode('\\',$class_name);
@@ -218,7 +223,7 @@ class Autoload
 		$className = $namespace[count($namespace)-1];
 		
 		//Path for classes
-		$path = LIBRARY_ROOT;
+		$path = '';
 		for($i = 0; $i < count($namespace)-1; $i++)
 		{
 			$path .= $namespace[$i].DIRECTORY_SEPARATOR;
@@ -230,19 +235,62 @@ class Autoload
 		{
 			//Require the class into the project
 			require_once $include;
-			
+
 			//Alias the newly loaded class
-			if(isset($alias))
-				Alias::load($alias, false);
+			if (isset($alias))
+            {
+                Alias::load($alias, false);
+            }
 			
 			//Return true on success
 			return true;
 		}
-		else
+
+		return false;
+	}
+
+	/**
+	 * Loads a class from the library folder.
+	 * @param string $class_name
+	 * @return boolean
+	 *@throws Exception
+	 */
+	protected function loadLibraryClass(string $class_name): bool
+	{
+		//Correct for a leading \ character
+		if(str_starts_with($class_name, '\\')) $class_name = substr($class_name, 1);
+
+		//Split the class into it's namespace components.
+		$namespace = explode('\\',$class_name);
+
+		//Set the final class name
+		$className = $namespace[count($namespace)-1];
+
+		//Path for classes
+		$path = '';
+		for($i = 0; $i < count($namespace)-1; $i++)
 		{
-			//Throw exception when we can't load the class
-			throw new Exception('Error Loading Library Class: '.$class_name, 501);
+			$path .= $namespace[$i].DIRECTORY_SEPARATOR;
 		}
+
+		//Location
+		$include = $path.$className.static::PHP_FILE_EXTENSION;
+		if(file_exists(LIBRARY_ROOT.$include))
+		{
+			//Require the class into the project
+			require_once LIBRARY_ROOT.$include;
+
+			//Alias the newly loaded class
+			if (isset($alias))
+			{
+				Alias::load($alias, false);
+			}
+
+			//Return true on success
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
@@ -407,7 +455,7 @@ class Autoload
 		foreach($this->layoutSearchDirectories as $dir)
 		{
 			$theLayout = $dir;
-			if(substr($theLayout,strlen($theLayout)-2) == DIRECTORY_SEPARATOR)
+			if(substr($theLayout,strlen($theLayout)-2) === DIRECTORY_SEPARATOR)
 			{
 				$theLayout .= DIRECTORY_SEPARATOR;
 			}

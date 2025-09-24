@@ -109,6 +109,11 @@ class FakeCtrlAuthAdapter implements AuthAdapter
 	{
 		$this->userId = $user;
 	}
+
+	public function clear(): bool
+	{
+		return true;
+	}
 }
 
 class ControllerTest extends TestCase
@@ -118,7 +123,7 @@ class ControllerTest extends TestCase
 	const ROUTE_PROTECTED = 'protected/data';
 	const ROUTE_UNPROTECTED_VIEW = 'protected/index';
 
-	protected function setUp()
+	protected function setUp(): void
 	{
 		//Clear auth before each test.
 		Auth::get()->clearAuth();

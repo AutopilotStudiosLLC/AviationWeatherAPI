@@ -23,9 +23,17 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with the STAPLE Framework.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 namespace Staple;
 
+include('Config.php');
+
+use Exception;
 use Staple\Controller\Controller;
+use Staple\Exception\AuthException;
+use Staple\Exception\ConfigurationException;
+use Staple\Exception\PageNotFoundException;
+use Staple\Exception\RoutingException;
 use Staple\Session\Session;
 
 class Main
@@ -61,70 +69,13 @@ class Main
 	 * FORMS_ROOT, MODEL_ROOT, CONTROLLER_ROOT, VIEW_ROOT, and SCRIPT_ROOT. All of these constants exist as folders inside of the
 	 * APPLICATION_ROOT directory. The constructor loads and checks configuration, sets up the autoloader, sets custom error handlers
 	 * and begins a session.
+	 * @throws ConfigurationException
+	 * @throws Exception
 	 */
 	private function __construct()
 	{
-		//Application Constants, if not already defined
-		defined('FOLDER_ROOT')
-			|| define('FOLDER_ROOT', realpath(dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR));
-		
-		defined('LIBRARY_ROOT')
-			|| define('LIBRARY_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'library' . DIRECTORY_SEPARATOR);
-		
-		defined('SITE_ROOT')
-			|| define('SITE_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR);
-		
-		defined('APPLICATION_ROOT')
-			|| define('APPLICATION_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'application' . DIRECTORY_SEPARATOR);
-		
-		defined('MODULES_ROOT')
-			|| define('MODULES_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'modules' . DIRECTORY_SEPARATOR);
-
-		defined('TEST_ROOT')
-		|| define('TEST_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR);
-
-		defined('VENDOR_ROOT')
-			|| define('VENDOR_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR);
-		
-		//Setup STAPLE Constants
-		defined('CONFIG_ROOT')
-	    	|| define('CONFIG_ROOT', APPLICATION_ROOT . 'config' . DIRECTORY_SEPARATOR);
-
-		defined('LAYOUT_ROOT')
-			|| define('LAYOUT_ROOT', APPLICATION_ROOT . 'layouts' . DIRECTORY_SEPARATOR);
-		
-		defined('FORMS_ROOT')
-			|| define('FORMS_ROOT', APPLICATION_ROOT . 'forms' . DIRECTORY_SEPARATOR);
-
-		defined('MODEL_ROOT')
-			|| define('MODEL_ROOT', APPLICATION_ROOT . 'models' . DIRECTORY_SEPARATOR);
-
-		defined('CONTROLLER_ROOT')
-			|| define('CONTROLLER_ROOT', APPLICATION_ROOT . 'controllers' . DIRECTORY_SEPARATOR);
-
-		defined('PROVIDER_ROOT')
-		|| define('PROVIDER_ROOT', APPLICATION_ROOT . 'providers' . DIRECTORY_SEPARATOR);
-
-		defined('STATIC_ROOT')
-			|| define('STATIC_ROOT', APPLICATION_ROOT . 'static' . DIRECTORY_SEPARATOR);
-
-		defined('VIEW_ROOT')
-			|| define('VIEW_ROOT', APPLICATION_ROOT . 'views' . DIRECTORY_SEPARATOR);
-
-		defined('SCRIPT_ROOT')
-			|| define('SCRIPT_ROOT',FOLDER_ROOT . 'scripts' . DIRECTORY_SEPARATOR);
-		
-		defined('STAPLE_ROOT')
-			|| define('STAPLE_ROOT',LIBRARY_ROOT . 'Staple' . DIRECTORY_SEPARATOR);
-		
-		//Include the Staple Config and Alias class always
-		require_once STAPLE_ROOT.'Alias.php';
-		require_once STAPLE_ROOT.'Config.php';
-		
-		//Alias the primary classes
-		Alias::load('Alias', false);
-		Alias::load('Config', false);
-		Alias::load('Main', false);
+		//Setup the global constants
+		self::setGlobals();
 		
 		//Check for a custom loader
 		if(Config::getValue('application', 'loader') != '')
@@ -140,10 +91,10 @@ class Main
 			}
 			
 			//Instantiate custom loader
-			$loader = new $loader();
-			if($loader instanceof Autoload)
+			$loaderInstance = new $loader();
+			if($loaderInstance instanceof Autoload)
 			{
-				$this->loader = $loader;
+				$this->loader = $loaderInstance;
 			}
 		}
 		
@@ -151,17 +102,11 @@ class Main
 		if(!($this->loader instanceof Autoload))
 		{
 		    require_once STAPLE_ROOT . 'Autoload.php';
-			$this->loader = new Autoload();
+			$this->loader = Autoload::create();
 		}
 		
 		//Register the Autoload class
 		spl_autoload_register(array($this->loader, 'load'));
-
-		//Add the composer autoloader, if exists.
-		if(file_exists(VENDOR_ROOT.'autoload.php'))
-		{
-			include_once VENDOR_ROOT.'autoload.php';
-		}
 
 		//Call the bootstrapper
 		$this->boot();
@@ -178,13 +123,72 @@ class Main
 		{
 			Dev::startTimer();
 		}
+
+		//Add Functional Routes
+		$this->addRoutes();
+	}
+
+	public static function setGlobals(): void
+	{
+		//Application Constants, if not already defined
+		defined('FOLDER_ROOT')
+		|| define('FOLDER_ROOT', realpath(dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR));
+
+		defined('LIBRARY_ROOT')
+		|| define('LIBRARY_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'library' . DIRECTORY_SEPARATOR);
+
+		defined('SITE_ROOT')
+		|| define('SITE_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR);
+
+		defined('APPLICATION_ROOT')
+		|| define('APPLICATION_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'application' . DIRECTORY_SEPARATOR);
+
+		defined('MODULES_ROOT')
+		|| define('MODULES_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'modules' . DIRECTORY_SEPARATOR);
+
+		defined('TEST_ROOT')
+		|| define('TEST_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR);
+
+		defined('VENDOR_ROOT')
+		|| define('VENDOR_ROOT', FOLDER_ROOT . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR);
+
+		//Setup STAPLE Constants
+		defined('CONFIG_ROOT')
+		|| define('CONFIG_ROOT', APPLICATION_ROOT . 'config' . DIRECTORY_SEPARATOR);
+
+		defined('LAYOUT_ROOT')
+		|| define('LAYOUT_ROOT', APPLICATION_ROOT . 'layouts' . DIRECTORY_SEPARATOR);
+
+		defined('FORMS_ROOT')
+		|| define('FORMS_ROOT', APPLICATION_ROOT . 'forms' . DIRECTORY_SEPARATOR);
+
+		defined('MODEL_ROOT')
+		|| define('MODEL_ROOT', APPLICATION_ROOT . 'models' . DIRECTORY_SEPARATOR);
+
+		defined('CONTROLLER_ROOT')
+		|| define('CONTROLLER_ROOT', APPLICATION_ROOT . 'controllers' . DIRECTORY_SEPARATOR);
+
+		defined('PROVIDER_ROOT')
+		|| define('PROVIDER_ROOT', APPLICATION_ROOT . 'providers' . DIRECTORY_SEPARATOR);
+
+		defined('STATIC_ROOT')
+		|| define('STATIC_ROOT', APPLICATION_ROOT . 'static' . DIRECTORY_SEPARATOR);
+
+		defined('VIEW_ROOT')
+		|| define('VIEW_ROOT', APPLICATION_ROOT . 'views' . DIRECTORY_SEPARATOR);
+
+		defined('SCRIPT_ROOT')
+		|| define('SCRIPT_ROOT',FOLDER_ROOT . 'scripts' . DIRECTORY_SEPARATOR);
+
+		defined('STAPLE_ROOT')
+		|| define('STAPLE_ROOT',LIBRARY_ROOT . 'Staple' . DIRECTORY_SEPARATOR);
 	}
 	
 	/**
 	 * Get the error handler for the application.
 	 * @return Error $errorHandler
 	 */
-	public function getErrorHandler()
+	public function getErrorHandler(): Error
 	{
 		return $this->errorHandler;
 	}
@@ -193,7 +197,7 @@ class Main
 	 * @param Error $errorHandler
 	 * @return Main
 	 */
-	public function setErrorHandler(Error $errorHandler)
+	public function setErrorHandler(Error $errorHandler): static
 	{
 		$this->errorHandler = $errorHandler;
 		
@@ -203,15 +207,19 @@ class Main
 		
 		return $this;
 	}
-	
-	public function inDevMode()
+
+	/**
+	 * @return bool
+	 * @throws ConfigurationException
+	 */
+	public function inDevMode(): bool
 	{
 	    return (bool)Config::getValue('errors', 'devmode');
 	}
 	
 	/**
 	 * 
-	 * Instantiates the application as a singleton, and/or returns the current instance.
+	 * Instantiates the application as a singleton and/or returns the current instance.
 	 */
 	public static function get()
 	{
@@ -224,22 +232,20 @@ class Main
 	
 	/**
 	 * Get or set a controller on the Main object
-	 * @param Controller | string $class
+	 * @param string | Controller $class
 	 * @return Controller | NULL
 	 */
-	public static function controller($class)
+	public static function controller(string|Controller $class): ?Controller
 	{
 		if($class instanceof Controller)
 		{
 			return Session::registerController($class);
 		}
-		elseif(is_string($class))
+		else
 		{
 			$class = strtolower($class);
 			return Session::getController($class);
 		}
-
-		return NULL;
 	}
 	
 	/**
@@ -283,18 +289,21 @@ class Main
 	 * @param string $class
 	 * @return Controller | NULL
 	 */
-	public function getController($class)
-	{
+	public function getController(string $class): ?Controller
+    {
 		$class = strtolower($class);
 		return Session::getController($class);
 	}
 	
 	/**
 	 * Executes the application process.
-	 * @param Route | string $route
+	 * @param string | Route|null $route
 	 * @return boolean
+	 * @throws RoutingException
+	 * @throws AuthException
+	 * @throws Exception
 	 */
-	public function run($route = NULL)
+	public function run(string|Route $route = NULL): bool
 	{
 		//First determine which routing information to use
 		if(!is_null($route))								//Use the supplied Route
@@ -330,10 +339,22 @@ class Main
 		//Include the boot file.
 		include_once APPLICATION_ROOT.'boot.php';
 	}
+
+	/**
+	 * Include the routes file.
+	 */
+	private function addRoutes()
+	{
+		include_once APPLICATION_ROOT.'routes.php';
+	}
 	
 	/**
 	 * Execute the current route
 	 * @return boolean
+	 * @throws PageNotFoundException
+	 * @throws RoutingException
+	 * @throws AuthException
+	 * @throws Exception
 	 */
 	protected function executeRoute()
 	{
@@ -351,6 +372,9 @@ class Main
 	 * redirect as a routing string. This can be generated using the Staple_Link::get() function.
 	 * 
 	 * @param mixed $newRoute
+	 * @throws RoutingException
+	 * @throws PageNotFoundException
+	 * @throws AuthException
 	 */
 	public function redirect($newRoute)
 	{

@@ -125,7 +125,7 @@ abstract class Model implements \JsonSerializable, \ArrayAccess
 		{
 			return $this->$method();
 		}
-		elseif(isset($this->_data[$name]))
+		elseif(isset($this->_data[$name]) || array_key_exists($name, $this->_data))
 		{
 			return $this->_data[$name];
 		}
@@ -398,7 +398,7 @@ abstract class Model implements \JsonSerializable, \ArrayAccess
 
 		//check for a new ID and apply it to the data set.
 		/** @var Insert $query */
-		if($query instanceof Insert)
+		if($query instanceof Insert && $result != false)
 			$this->_data[$this->_primaryKey] = $query->getInsertId();
 
 		//Return the boolean of success or failure.
@@ -487,7 +487,7 @@ abstract class Model implements \JsonSerializable, \ArrayAccess
 				return $models;
 		}
 
-		throw new ModelNotFoundException();
+		return [];
 	}
 
 	/**

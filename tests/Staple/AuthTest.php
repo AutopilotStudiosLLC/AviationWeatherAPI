@@ -27,6 +27,13 @@ class FakeAuthAdapter implements AuthAdapter
 	/** @var int */
 	private $userLevel = 0;
 
+	public function clear(): bool
+	{
+		$this->userId = null;
+		$this->userLevel = 0;
+		return true;
+	}
+
 	/**
 	 * This function must be implemented to check the authorization based on the adapter
 	 * at hand. The function must return a boolean true for the Staple_Auth object to view

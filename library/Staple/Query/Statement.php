@@ -25,6 +25,7 @@ namespace Staple\Query;
 
 use PDO;
 use PDOStatement;
+use Staple\Exception\ConfigurationException;
 
 class Statement extends PDOStatement implements IStatement
 {
@@ -34,9 +35,24 @@ class Statement extends PDOStatement implements IStatement
      */
     protected $driver;
 
-	/*
+    /**
+	 * The data store connection.
+     * @var Connection
+     */
+    protected $connection;
+
+	/**
+	 * The bound parameters of the query
+	 * @var array
+	 */
+	protected $params = [];
+
+	/**
 	 * Magic method to fake MySQLi property functions
 	 * @deprecated
+	 * @param string $name
+	 * @return int|null
+	 * @throws ConfigurationException
 	 */
 	public function __get($name)
 	{
@@ -69,6 +85,42 @@ class Statement extends PDOStatement implements IStatement
     }
 
 	/**
+	 * @return IConnection
+	 */
+	public function getConnection(): IConnection
+	{
+		return $this->connection;
+	}
+
+	/**
+	 * @param IConnection $connection
+	 * @return IStatement
+	 */
+	public function setConnection(IConnection $connection): IStatement
+	{
+		$this->connection = $connection;
+		return $this;
+	}
+
+	public function bindParam($param, &$var, $type = PDO::PARAM_STR, $maxLength = null, $driverOptions = null)
+	{
+		$this->params[$param] = $var;
+		return parent::bindParam($param, $var, $type, $maxLength, $driverOptions);
+	}
+
+	public function bindColumn($column, &$var, $type = PDO::PARAM_STR, $maxLength = null, $driverOptions = null)
+	{
+		$this->params[$column] = $var;
+		return parent::bindColumn($column, $var, $type, $maxLength, $driverOptions);
+	}
+
+	public function bindValue($param, $value, $type = PDO::PARAM_STR)
+	{
+		$this->params[$param] = $value;
+		return parent::bindValue($param, $value, $type);
+	}
+
+	/**
 	 * Mysqli style associative array fetch style
 	 * @return mixed
 	 * @deprecated
@@ -91,6 +143,7 @@ class Statement extends PDOStatement implements IStatement
     /**
      * Returns the number of rows found in the previous query.
      * @return string
+	 * @throws ConfigurationException
      */
     public function foundRows()
     {
@@ -108,6 +161,7 @@ class Statement extends PDOStatement implements IStatement
 	/**
 	 * Override the PDOStatement rowCount() method to return
 	 * @return int
+	 * @throws ConfigurationException
 	 */
 	public function rowCount()
 	{
@@ -119,4 +173,16 @@ class Statement extends PDOStatement implements IStatement
 				return parent::rowCount();
 		}
 	}
+
+	/**
+	 * @param array|null $input_parameters
+	 * @return bool
+	 */
+	public function execute($input_parameters = null)
+	{
+		$this->getConnection()->addQueryToLog($this->queryString, $this->params);
+		return parent::execute($input_parameters);
+	}
+
+
 }
