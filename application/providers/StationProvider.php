@@ -42,11 +42,9 @@ class StationProvider extends RestfulController
 	{
 		try
 		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
-				'dataSource' => 'stations',
-				'requestType' => 'retrieve',
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/stationinfo', [
 				'format' => 'xml',
-				'stationString' => strtoupper((string)$ident)
+				'ids' => strtoupper((string)$ident)
 			]);
 			/** @var SimpleXMLElement $xml */
 			$xml = $response->data;
@@ -72,9 +70,7 @@ class StationProvider extends RestfulController
 		$longitude = (float)$_GET['longitude'] ?? null;
 		try
 		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
-				'dataSource' => 'stations',
-				'requestType' => 'retrieve',
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/stationinfo', [
 				'format' => 'xml',
 				'radialDistance' => $distance.';'.$longitude.','.$latitude,
 				'hoursBeforeNow' => (int)$hoursBeforeNow
@@ -97,9 +93,7 @@ class StationProvider extends RestfulController
 		$stationString = (string)($_GET['stations'] ?? '');
 		try
 		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
-				'dataSource' => 'stations',
-				'requestType' => 'retrieve',
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/stationinfo', [
 				'format' => 'xml',
 				'stationString' => $stationString,
 				'hoursBeforeNow' => (int)$hoursBeforeNow
@@ -127,9 +121,7 @@ class StationProvider extends RestfulController
 
 		try
 		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
-				'dataSource' => 'stations',
-				'requestType' => 'retrieve',
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/stationinfo', [
 				'format' => 'xml',
 				'flightPath' => $corridorWidth.';'.$flightPath,
 			]);

@@ -136,7 +136,7 @@ class MetarProvider extends RestfulController
 	 * Get a list of Metars based on a list of stations.
 	 * @return null|string
 	 */
-	public function getList()
+	public function getList(): ?string
 	{
 		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 3);
 		$stationString = (string)($_GET['stations'] ?? '');
@@ -181,7 +181,7 @@ class MetarProvider extends RestfulController
 	 * Get a list of Metars based on a list of stations.
 	 * @return null|string
 	 */
-	public function getFlight()
+	public function getFlight(): ?string
 	{
 		$corridorWidth = (float)($_GET['corridor'] ?? 60);
 		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 2);
