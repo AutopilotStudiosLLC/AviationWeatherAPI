@@ -223,7 +223,17 @@ class MetarProvider extends RestfulController
 		}
 	}
 
-
+	/**
+	 * Calculates a bounding box in degrees of latitude and longitude based on a distance in miles
+	 * from a given geographic point.
+	 *
+	 * @param float $distanceMiles Distance in miles from the central point to each edge of the bounding box.
+	 * @param float $latitude Latitude of the center point in decimal degrees.
+	 * @param float $longitude Longitude of the center point in decimal degrees.
+	 *
+	 * @return array An associative array with the keys 'minLat', 'maxLat', 'minLon', and 'maxLon'
+	 *               representing the bounding box coordinates.
+	 */
 	protected function boundingBoxMiles(float $distanceMiles, float $latitude, float $longitude): array
 	{
 		// Convert miles to km
@@ -269,6 +279,12 @@ class MetarProvider extends RestfulController
 		];
 	}
 
+	/**
+	 * Normalize a longitude value to ensure it falls within the range of [-180, 180] degrees.
+	 *
+	 * @param float $lon The longitude value to normalize.
+	 * @return float The normalized longitude.
+	 */
 	protected function normalizeLon(float $lon): float
 	{
 		// Wrap longitude into [-180, 180]

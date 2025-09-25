@@ -117,6 +117,7 @@ class Rest
 		$curl->get($url, $data);
 		//Log the object
 		self::addToLog($curl);
+		echo json_encode($curl, JSON_PRETTY_PRINT);
 		//Search for an error or return results.
 		if($curl->error === true)
 		{
