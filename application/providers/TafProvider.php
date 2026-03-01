@@ -36,46 +36,39 @@ class TafProvider extends RestfulController
 	}
 
 	/**
+	 * Alias for getTaf() method
+	 *
+	 * @param $identifier
+	 * @return Json|string
+	 */
+	public function getRecent($identifier = 'KSEA')
+	{
+		return $this->getTaf($identifier);
+	}
+
+	/**
 	 * Get recent METAR data
 	 * @param string $identifier
 	 * @param int $hoursBeforeNow
-	 * @return null|string
+	 * @return Json|string
 	 */
 	public function getTaf($identifier = 'KSEA')
 	{
 		try
 		{
+			$format = (string)($_GET['format'] ?? 'default');
 			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/taf', [
-				'format' => 'xml',
+				'format' => 'json',
 				'ids' => strtoupper((string)$identifier),
 				'metar'=>'false',
 			]);
-			/** @var SimpleXMLElement $xml */
-			echo json_encode($response, JSON_PRETTY_PRINT).'<br><br>';
-			$xml = $response->data;
-			$xml->addChild('results', $xml['num_results']);
-			unset($xml['num_results']);
-			foreach($xml->TAF as $taf)
-			{
-				foreach($taf->forecast as $forecast)
-				{
-					$sky = $forecast->sky_condition;
-					foreach($sky as $condition)
-					{
-						$unsetters = [];
-						foreach($condition->attributes() as $key => $value)
-						{
-							$condition->addChild($key, $value);
-							$unsetters[] = $key;
-						}
-						foreach($unsetters as $attribute)
-						{
-							unset($condition[$attribute]);
-						}
-					}
-				}
+			if ($format === 'json') {
+				return Json::success($response);
 			}
-			return Json::success($xml);
+			else
+			{
+				return Json::success($this->originalFormat($response));
+			}
 		}
 		catch(RestException $e)
 		{
@@ -89,40 +82,23 @@ class TafProvider extends RestfulController
 	 */
 	public function getList()
 	{
+		$format = (string)($_GET['format'] ?? 'default');
 		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 2);
 		$stationString = (string)($_GET['stations'] ?? '');
 		try
 		{
 			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/taf', [
-				'format' => 'xml',
+				'format' => 'json',
 				'ids' => $stationString,
 				'hours' => (int)$hoursBeforeNow
 			]);
-			/** @var SimpleXMLElement $xml */
-			$xml = $response->data;
-			$xml->addChild('results', $xml['num_results']);
-			unset($xml['num_results']);
-			foreach($xml->TAF as $taf)
-			{
-				foreach($taf->forecast as $forecast)
-				{
-					$sky = $forecast->sky_condition;
-					foreach($sky as $condition)
-					{
-						$unsetters = [];
-						foreach($condition->attributes() as $key => $value)
-						{
-							$condition->addChild($key, $value);
-							$unsetters[] = $key;
-						}
-						foreach($unsetters as $attribute)
-						{
-							unset($condition[$attribute]);
-						}
-					}
-				}
+			if ($format === 'json') {
+				return Json::success($response);
 			}
-			return Json::success($xml);
+			else
+			{
+				return Json::success($this->originalFormat($response));
+			}
 		}
 		catch(RestException $e)
 		{
@@ -136,44 +112,27 @@ class TafProvider extends RestfulController
 	 */
 	public function getLocal()
 	{
+		$format = (string)($_GET['format'] ?? 'default');
 		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 3);
 		$distance = (int)$_GET['distance'] ?? null;
 		$latitude = (float)$_GET['latitude'] ?? null;
 		$longitude = (float)$_GET['longitude'] ?? null;
+
+		$box = AddsModel::boundingBoxMiles($distance, $latitude, $longitude);
 		try
 		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
-				'dataSource' => 'tafs',
-				'requestType' => 'retrieve',
-				'format' => 'xml',
-				'radialDistance' => $distance.';'.$longitude.','.$latitude,
-				'hoursBeforeNow' => (int)$hoursBeforeNow
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/taf', [
+				'bbox' => $box['minLat'].','.$box['minLon'].','.$box['maxLat'].','.$box['maxLon'],
+				'format' => 'json',
+				'hours' => (int)$hoursBeforeNow
 			]);
-			/** @var SimpleXMLElement $xml */
-			$xml = $response->data;
-			$xml->addChild('results', $xml['num_results']);
-			unset($xml['num_results']);
-			foreach($xml->TAF as $taf)
-			{
-				foreach($taf->forecast as $forecast)
-				{
-					$sky = $forecast->sky_condition;
-					foreach($sky as $condition)
-					{
-						$unsetters = [];
-						foreach($condition->attributes() as $key => $value)
-						{
-							$condition->addChild($key, $value);
-							$unsetters[] = $key;
-						}
-						foreach($unsetters as $attribute)
-						{
-							unset($condition[$attribute]);
-						}
-					}
-				}
+			if ($format === 'json') {
+				return Json::success($response);
 			}
-			return Json::success($xml);
+			else
+			{
+				return Json::success($this->originalFormat($response));
+			}
 		}
 		catch(RestException $e)
 		{
@@ -230,5 +189,56 @@ class TafProvider extends RestfulController
 		{
 			return Json::error($e->getMessage());
 		}
+	}
+
+	protected function originalFormat(mixed $response): stdClass
+	{
+		$json = new stdClass();
+		$json->TAF = [];
+
+		$json->results = count($response);
+		foreach ($response as $taf)
+		{
+			$newTaf = new stdClass();
+			$newTaf->raw_text = $taf->rawTAF;
+			$newTaf->station_id = $taf->icaoId;
+			$newTaf->issue_time = $taf->issueTime;
+			$newTaf->bulletin_time = $taf->bulletinTime;
+			$newTaf->valid_time_from = (new DateTime())->setTimestamp($taf->validTimeFrom)->format(AddsModel::DATETIME_FORMAT);
+			$newTaf->valid_time_to = (new DateTime())->setTimestamp($taf->validTimeTo)->format(AddsModel::DATETIME_FORMAT);
+			$newTaf->latitude = $taf->lat;
+			$newTaf->longitude = $taf->lon;
+			$newTaf->elevation_m = $taf->elev;
+			$newTaf->forecast = [];
+			foreach ($taf->fcsts as $forecast)
+			{
+				$newCast = new stdClass();
+				$newCast->fcst_time_from = (new DateTime())->setTimestamp($forecast->timeFrom)->format(AddsModel::DATETIME_FORMAT);
+				$newCast->fcst_time_to = (new DateTime())->setTimestamp($forecast->timeTo)->format(AddsModel::DATETIME_FORMAT);
+				$newCast->change_indicator = $forecast->fcstChange;
+				$newCast->wind_dir_degrees = $forecast->wdir;
+				$newCast->wind_speed_kt = $forecast->wspd;
+				$newCast->visibility_statute_mi = $forecast->visib;
+				$newCast->sky_condition = [];
+
+				$sky = $forecast->clouds;
+				foreach ($sky as $condition)
+				{
+					$newCond = new stdClass();
+					$newCond->sky_cover = $condition->cover;
+					$newCond->cloud_base_ft_agl = $condition->base;
+					if (count($sky) === 1)
+					{
+						$newCast->sky_condition = $newCond;
+					} else
+					{
+						$newCast->sky_condition[] = $newCond;
+					}
+				}
+				$newTaf->forecast[] = $newCast;
+			}
+			$json->TAF[] = $newTaf;
+		}
+		return $json;
 	}
 }
