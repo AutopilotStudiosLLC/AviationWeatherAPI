@@ -27,8 +27,15 @@ use Exception;
 use Staple\Config;
 use Staple\Error;
 use Staple\Exception\AuthException;
+use Staple\Exception\ConfigurationException;
+use Staple\Exception\NotAuthorizedException;
+use Staple\Exception\PageNotFoundException;
+use Staple\Exception\RoutingException;
+use Staple\Exception\SessionException;
+use Staple\Exception\SystemException;
 use Staple\Route;
 use Staple\Session\Session;
+use ReflectionClass, ReflectionMethod;
 
 class Auth implements IAuthService
 {
@@ -85,7 +92,14 @@ class Auth implements IAuthService
 	public function __construct()
 	{
 		$this->authed = false;
-		$this->defaultUnauthenticatedRoute = new Route('index/index');
+		try
+		{
+			$this->setDefaultUnauthenticatedRoute(Route::create(Config::getValue('auth', 'route')));
+		}
+		catch(Exception $e)
+		{
+			$this->defaultUnauthenticatedRoute = new Route('index/index');
+		}
 	}
 	
 	/**
@@ -101,6 +115,7 @@ class Auth implements IAuthService
 	 * 
 	 * Gets the singleton instance of the object. Checks the session to see if a current auth
 	 * object already exists. If not a new Auth object is created.
+	 * @throws SessionException
 	 * @return Auth
 	 */
 	public static function get()
@@ -136,13 +151,21 @@ class Auth implements IAuthService
 	 * This is a pass-through method to the AuthAdapter authRoute() method.
 	 * @param Route $route
 	 * @param $requiredLevel
-	 * @param \ReflectionClass $reflectionClass
-	 * @param \ReflectionMethod $reflectionMethod
+	 * @param ReflectionClass $reflectionClass
+	 * @param ReflectionMethod $reflectionMethod
 	 * @return bool
 	 */
-	public function authRoute(Route $route, $requiredLevel, \ReflectionClass $reflectionClass, \ReflectionMethod $reflectionMethod)
+	public function authRoute(Route $route, $requiredLevel, ReflectionClass $reflectionClass, ReflectionMethod $reflectionMethod)
 	{
 		return $this->adapter->authRoute($route, $requiredLevel, $reflectionClass, $reflectionMethod);
+	}
+
+	/**
+	 * @return AuthAdapter
+	 */
+	public function getAuthAdapter()
+	{
+		return $this->adapter;
 	}
 	
 	/**
@@ -152,6 +175,10 @@ class Auth implements IAuthService
 	 */
 	public function getAuthLevel()
 	{
+		if(!($this->adapter instanceof AuthAdapter))
+		{
+			$this->createAuthAdapter();
+		}
 		return $this->adapter->getLevel();
 	}
 	
@@ -162,6 +189,10 @@ class Auth implements IAuthService
 	 */
 	public function getAuthId()
 	{
+		if(!($this->adapter instanceof AuthAdapter))
+		{
+			$this->createAuthAdapter();
+		}
 		return $this->adapter->getUserId();
 	}
 
@@ -202,7 +233,14 @@ class Auth implements IAuthService
 	 */
 	protected function setLastAttemptedRoute(Route $lastAttemptedRoute): Auth
 	{
-		$this->lastAttemptedRoute = $lastAttemptedRoute;
+		if ($lastAttemptedRoute->getType() == Route::ROUTE_FUNCTIONAL)
+		{
+			$this->lastAttemptedRoute = Route::create($lastAttemptedRoute->getRouteString());
+		}
+		else
+		{
+			$this->lastAttemptedRoute = $lastAttemptedRoute;
+		}
 
 		return $this;
 	}
@@ -213,7 +251,10 @@ class Auth implements IAuthService
 	 * Throws and Exception if the AuthAdapter is not implemented from Staple_AuthAdapter. 
 	 * Returns a boolean to signify if authorization succeeded.
 	 * @param mixed $credentials
-	 * @throws Exception
+	 * @throws SessionException
+	 * @throws SystemException
+	 * @throws ConfigurationException
+	 * @throws NotAuthorizedException
 	 * @return bool
 	 */
 	public function doAuth($credentials)
@@ -245,7 +286,8 @@ class Auth implements IAuthService
 	/**
 	 * Create the AuthAdapter with the option to supply a custom adapter.
 	 * @param AuthAdapter|null $adapter
-	 * @throws Exception
+	 * @throws SystemException
+	 * @throws ConfigurationException
 	 * @return bool
 	 */
 	private function createAuthAdapter(AuthAdapter $adapter = null)
@@ -263,13 +305,13 @@ class Auth implements IAuthService
 				$this->adapter = new $configuredAdapter();
 				if(!($this->adapter instanceof AuthAdapter))
 				{
-					throw new Exception('Invalid Authentication Adapter', Error::AUTH_ERROR);
+					throw new SystemException('Invalid Authentication Adapter', Error::AUTH_ERROR);
 				}
 				return true;
 			}
 			else
 			{
-				throw new Exception('Adapter Class Not Found', Error::AUTH_ERROR);
+				throw new SystemException('Adapter Class Not Found', Error::AUTH_ERROR);
 			}
 		}
 	}
@@ -277,12 +319,22 @@ class Auth implements IAuthService
 	/**
 	 * Implement a new authentication adapter. This also clears any current authentication that exists.
 	 * @param AuthAdapter $adapter
+	 * @throws SystemException
+	 * @throws ConfigurationException
 	 * @return bool
 	 */
 	public function implementAuthAdapter(AuthAdapter $adapter)
 	{
-		$this->clearAuth();
-		return $this->createAuthAdapter($adapter);
+		return $this->resetAuth($adapter);
+	}
+
+	/**
+	 * Returns the instance type of the auth adapter.
+	 * @return string
+	 */
+	public function getAdapterImplementation()
+	{
+		return get_class($this->adapter);
 	}
 	
 	/**
@@ -294,14 +346,19 @@ class Auth implements IAuthService
 	 * @param Route $routeTo
 	 * @return bool
 	 * @throws AuthException
+	 * @throws RoutingException
+	 * @throws PageNotFoundException
 	 */
 	public function noAuth(Route $attemptedRoute = null, Route $routeTo = null)
 	{
 		//Break a potential infinite loop
 		if($this->getLastAttemptedRoute() instanceof Route)
 		{
-			if($attemptedRoute->getController() == $this->getLastAttemptedRoute()->getController()
-				&& $attemptedRoute->getAction() == $this->getLastAttemptedRoute()->getAction())
+			$defaultRoute = $this->getDefaultUnauthenticatedRoute();
+			if($attemptedRoute->getController() === $this->getLastAttemptedRoute()->getController()
+				&& $attemptedRoute->getAction() === $this->getLastAttemptedRoute()->getAction()
+				&& $attemptedRoute->getController() !== $defaultRoute->getController()
+				&& $attemptedRoute->getAction() !== $defaultRoute->getAction())
 			{
 				throw new AuthException('Not Authorized');
 			}
@@ -318,16 +375,38 @@ class Auth implements IAuthService
 			return $route->execute();
 		}
 	}
-	
+
 	/**
-	 * 
 	 * General log out or clear credentials function.
+	 * @param AuthAdapter|null $adapter
+	 * @return bool
+	 * @throws ConfigurationException
+	 * @throws SystemException
 	 */
-	public function clearAuth()
+	public function clearAuth(AuthAdapter $adapter = null): bool
 	{
-		$this->createAuthAdapter();
+		if (isset($this->adapter))
+		{
+			$this->adapter->clear();
+		}
 		$this->authed = false;
 		$this->message = 'Logged Out';
+		return true;
+	}
+
+	/**
+	 * General log out or clear credentials function.
+	 * @param AuthAdapter|null $adapter
+	 * @return bool
+	 * @throws ConfigurationException
+	 * @throws SystemException
+	 */
+	public function resetAuth(AuthAdapter $adapter = null): bool
+	{
+		$this->createAuthAdapter($adapter);
+		$this->authed = false;
+		$this->message = 'Logged Out';
+		return true;
 	}
 	
 	/**
@@ -342,6 +421,7 @@ class Auth implements IAuthService
 
 	/**
 	 * Write the auth object to the session
+	 * @throws SessionException
 	 */
 	private static function writeSession()
 	{

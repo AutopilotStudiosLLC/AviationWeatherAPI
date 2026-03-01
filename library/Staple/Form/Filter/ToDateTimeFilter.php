@@ -28,8 +28,10 @@ use Staple\Form\FieldFilter;
 
 class ToDateTimeFilter extends FieldFilter
 {
-	/* (non-PHPdoc)
-	 * @see Staple_Form_Filter::filter()
+	/**
+	 * @param string $text
+	 * @return DateTime
+	 * @throws Exception
 	 */
 	public function filter($text)
 	{
@@ -52,5 +54,3 @@ class ToDateTimeFilter extends FieldFilter
 
 
 }
-
-?>

@@ -24,6 +24,7 @@
 namespace Staple\Rest;
 
 use Curl\Curl;
+use SimpleXMLElement;
 use Staple\Exception\RestException;
 
 class Rest
@@ -35,12 +36,12 @@ class Rest
 	const DELETE = "DELETE";
 	const OPTIONS = "OPTIONS";
 	const TRACE = "TRACE";
-	protected static $restLog = array();
+	protected static array $restLog = [];
 	/**
 	 * Return an array of the supported SSL cipher list.
 	 * @return array
 	 */
-	public static function getCipherArray()
+	public static function getCipherArray(): array
 	{
 		return [
 			'ECDHE-ECDSA-AES256-GCM-SHA384',
@@ -53,7 +54,7 @@ class Rest
 			'ECDHE-RSA-AES128-SHA256',
 		];
 	}
-	private static function getCurlObject()
+	private static function getCurlObject(): Curl
 	{
 		$curl = new Curl();
 		$curl->setOpt(CURLOPT_SSLVERSION, 'CURL_SSLVERSION_TLSv1_2');
@@ -68,7 +69,7 @@ class Rest
 	 * @param Curl $curl
 	 * @return int
 	 */
-	protected static function addToLog(Curl $curl)
+	protected static function addToLog(Curl $curl): int
 	{
 		return array_push(self::$restLog,$curl);
 	}
@@ -76,7 +77,7 @@ class Rest
 	 * Get the array of rest calls.
 	 * @return array
 	 */
-	public static function getRestLog()
+	public static function getRestLog(): array
 	{
 		return self::$restLog;
 	}
@@ -84,13 +85,13 @@ class Rest
 	 * Get the object from the last request.
 	 * @return mixed
 	 */
-	public static function getLastRequest()
+	public static function getLastRequest(): mixed
 	{
 		$log = array_pop(self::$restLog);
-		array_push(self::$restLog,$log);
+		array_push(self::$restLog, $log);
 		return $log;
 	}
-	public static function addHeadersToRequest(Curl $curl, array $headers = [])
+	public static function addHeadersToRequest(Curl $curl, array $headers = []): Curl
 	{
 		foreach($headers as $key=>$value)
 		{
@@ -103,10 +104,10 @@ class Rest
 	 * @param $url
 	 * @param array $data
 	 * @param array $headers
-	 * @return RestResponse|\SimpleXMLElement|null
+	 * @return RestResponse|SimpleXMLElement|null
 	 * @throws RestException
 	 */
-	public static function get($url, $data = array(), array $headers = [])
+	public static function get($url, array $data = [], array $headers = []): SimpleXMLElement|RestResponse|null
 	{
 		//New Curl object
 		$curl = self::getCurlObject();
@@ -116,18 +117,21 @@ class Rest
 		$curl->get($url, $data);
 		//Log the object
 		self::addToLog($curl);
+		echo json_encode($curl, JSON_PRETTY_PRINT);
 		//Search for an error or return results.
-		if($curl->error === true) {
-			throw new RestException('Message: '.$curl->error_message.' Code: '.$curl->error_code);
-		} else {
-			if($curl->response != NULL && $curl->response != '') {
-				if($curl->http_status_code = 200) {
-					return $curl->response;
-				} else {
-					return new RestResponse($curl->http_status_code, $curl->response, $curl->response_headers);
-				}
-			} else {
-				throw new RestException('No response was received from the server.');
+		if($curl->error === true)
+		{
+			throw new RestException('Message: '.$curl->errorMessage.' Code: '.$curl->errorCode);
+		}
+		else
+		{
+			if($curl->httpStatusCode >= 200 && $curl->httpStatusCode < 300)
+			{
+				return $curl->response;
+			}
+			else
+			{
+				return new RestResponse($curl->httpStatusCode, $curl->response, $curl->responseHeaders);
 			}
 		}
 	}
@@ -143,7 +147,7 @@ class Rest
 	 * @return RestResponse|null
 	 * @throws RestException
 	 */
-	public static function put($url, $data, array $headers = [])
+	public static function put($url, $data, array $headers = []): ?RestResponse
 	{
 		//New Curl object
 		$curl = self::getCurlObject();
@@ -155,13 +159,13 @@ class Rest
 		self::addToLog($curl);
 		//Search for an error or return results.
 		if($curl->error === true) {
-			throw new RestException('Message: '.$curl->error_message.' Code: '.$curl->error_code);
+			throw new RestException('Message: '.$curl->errorMessage.' Code: '.$curl->errorCode);
 		} else {
 			if($curl->response != NULL && $curl->response != '') {
-				if($curl->http_status_code = 200) {
+				if($curl->httpStatusCode = 200) {
 					return $curl->response;
 				} else {
-					return new RestResponse($curl->http_status_code, $curl->response, $curl->response_headers);
+					return new RestResponse($curl->httpStatusCode, $curl->response, $curl->responseHeaders);
 				}
 			} else {
 				return NULL;

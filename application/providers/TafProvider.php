@@ -41,21 +41,17 @@ class TafProvider extends RestfulController
 	 * @param int $hoursBeforeNow
 	 * @return null|string
 	 */
-	public function getTaf($identifier = 'KSEA', $hoursBeforeNow = 4)
+	public function getTaf($identifier = 'KSEA')
 	{
 		try
 		{
-			$mostRecent = ($_GET['mostRecent'] === 'true') ? 'true' : 'false';
-
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
-				'dataSource' => 'tafs',
-				'requestType' => 'retrieve',
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/taf', [
 				'format' => 'xml',
-				'stationString' => strtoupper((string)$identifier),
-				'hoursBeforeNow' => (int)$hoursBeforeNow,
-				'mostRecent' => $mostRecent,
+				'ids' => strtoupper((string)$identifier),
+				'metar'=>'false',
 			]);
 			/** @var SimpleXMLElement $xml */
+			echo json_encode($response, JSON_PRETTY_PRINT).'<br><br>';
 			$xml = $response->data;
 			$xml->addChild('results', $xml['num_results']);
 			unset($xml['num_results']);
@@ -97,12 +93,10 @@ class TafProvider extends RestfulController
 		$stationString = (string)($_GET['stations'] ?? '');
 		try
 		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT, [
-				'dataSource' => 'tafs',
-				'requestType' => 'retrieve',
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/taf', [
 				'format' => 'xml',
-				'stationString' => $stationString,
-				'hoursBeforeNow' => (int)$hoursBeforeNow
+				'ids' => $stationString,
+				'hours' => (int)$hoursBeforeNow
 			]);
 			/** @var SimpleXMLElement $xml */
 			$xml = $response->data;

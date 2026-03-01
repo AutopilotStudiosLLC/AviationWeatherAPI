@@ -28,6 +28,7 @@ use PDOStatement;
 use SplObjectStorage;
 use SplObserver;
 use Staple\Config;
+use Staple\Exception\ConfigurationException;
 
 class Connection extends PDO implements IConnection
 {
@@ -105,13 +106,19 @@ class Connection extends PDO implements IConnection
 	 * Stores the last executed SQL Statement
 	 * @var string
 	 */
-	public $lastQuery;
+	public string $lastQuery;
+
+	/**
+	 * Stores the last executed SQL Statement bound parameters
+	 * @var array
+	 */
+	public array $lastQueryParams;
 
 	/**
 	 * Array of named connections that the application can retrieve.
 	 * @var array
 	 */
-	protected static $namedConnections = array();
+	protected static array $namedConnections = array();
 
 	/**
 	 * @param $dsn
@@ -128,6 +135,7 @@ class Connection extends PDO implements IConnection
 		if(!isset($this->driver)) $this->setDriver(self::getDriverFromDsn($dsn));
 
 		$this->setAttribute(PDO::ATTR_STATEMENT_CLASS,array('\Staple\Query\Statement'));
+		$this->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 		if(isset($username))
 			$this->setUsername($username);
@@ -322,6 +330,7 @@ class Connection extends PDO implements IConnection
 	/**
 	 * Get the default database instance.
 	 * @return $this
+	 * @throws ConfigurationException
 	 */
 	public static function getInstance()
 	{
@@ -335,6 +344,8 @@ class Connection extends PDO implements IConnection
 	/**
 	 * This is an alias of the getInstance() method.
 	 * @alias getInstance()
+	 * @return static
+	 * @throws ConfigurationException
 	 */
 	public static function get()
 	{
@@ -345,6 +356,7 @@ class Connection extends PDO implements IConnection
 	 * Create or return a named connection
 	 * @param $namedInstance
 	 * @return mixed
+	 * @throws ConfigurationException
 	 */
 	public static function getNamedConnection($namedInstance)
 	{
@@ -521,21 +533,23 @@ class Connection extends PDO implements IConnection
 	 * @param string $lastQuery
 	 * @return $this
 	 */
-	public function setLastQuery($lastQuery)
+	public function setLastQuery(string $lastQuery, array $params = [])
 	{
 		$this->lastQuery = $lastQuery;
+		$this->lastQueryParams = $params;
 		return $this;
 	}
 
 	/**
 	 * Add a query to the query log and set the lastQuery property to that query.
 	 * @param $query
+	 * @param array $params
 	 * @return $this
 	 */
-	protected function addQueryToLog($query)
+	public function addQueryToLog($query, array $params = [])
 	{
-		$this->queryLog[] = $query;
-		$this->setLastQuery($query);
+		$this->queryLog[] = ['query' => $query, 'params' => $params];
+		$this->setLastQuery($query, $params);
 		return $this;
 	}
 
@@ -616,6 +630,47 @@ class Connection extends PDO implements IConnection
 		return $result;
 	}
 
+	/**
+	 * @param string $statement
+	 * @param array|null $driver_options
+	 * @return IStatement
+	 */
+	public function prepare($statement, $driver_options = [])
+	{
+		/** @var IStatement $statement */
+		$statement = parent::prepare($statement, $driver_options);
+		$statement->setDriver($this->getDriver());
+		$statement->setConnection($this);
+		return $statement;
+	}
+
+	/**
+	 * @param string $query
+	 * @param array $fields
+	 * @return bool|PDOStatement
+	 */
+	public function prepareAndExecute(string $query, array $fields)
+	{
+		//Log the query
+		$this->addQueryToLog((string)$query);
+
+		$statement = parent::prepare($query, $this->getDriverOptions());
+
+		//Execute the query and check for errors
+		if($statement->execute($fields) === false)
+		{
+			//Notify the observers that an error has occurred.
+			$this->notify();
+		}
+
+		//Assign the driver type in the statement object
+		if ($statement instanceof Statement)
+			$statement->setDriver($this->getDriver());
+
+		//Return the result
+		return $statement;
+	}
+
 	/*-------------------------------------------------Observer Methods-------------------------------------------------*/
 
 	/**
@@ -637,6 +692,7 @@ class Connection extends PDO implements IConnection
 	 * A static call to attach an observer to the connection class.
 	 * @param SplObserver $observer
 	 * @return self
+	 * @throws ConfigurationException
 	 */
 	public static function attachObserver(SplObserver $observer)
 	{
@@ -664,6 +720,7 @@ class Connection extends PDO implements IConnection
 	 * Static method to detach an observer from the connection class.
 	 * @param SplObserver $observer
 	 * @return self
+	 * @throws ConfigurationException
 	 */
 	public static function detachObserver(SplObserver $observer)
 	{
