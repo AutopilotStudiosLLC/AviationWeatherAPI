@@ -147,14 +147,14 @@ class Autoload
 	 * Load a class into the application
 	 * @param string $class_name
 	 * @return bool
-	 *@throws Exception
+	 * @throws Exception
 	 */
 	public function load(string $class_name): bool
 	{
 		//Check for an aliased class name
 		if(!is_null($namespacedClass = Alias::checkAlias($class_name)))					//Look for aliased classes
 		{
-            return $this->loadAliasClass($namespacedClass, $class_name);
+			return $this->loadAliasClass($namespacedClass, $class_name);
 		}
 		elseif(str_starts_with($class_name, 'Staple\\'))
 		{

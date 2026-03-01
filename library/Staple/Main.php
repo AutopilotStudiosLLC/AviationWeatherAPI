@@ -26,7 +26,7 @@
 
 namespace Staple;
 
-include('Config.php');
+include_once('Config.php');
 
 use Exception;
 use Staple\Controller\Controller;

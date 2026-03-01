@@ -5,6 +5,7 @@
     "predis/predis":"1.1.*@dev",
     "auth0/auth0-php": "^5.0",
     "php-curl-class/php-curl-class": "^9.19.2",
-    "ext-SimpleXML": "*"
+    "ext-SimpleXML": "*",
+    "ext-pdo": "*"
   }
 }
