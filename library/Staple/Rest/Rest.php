@@ -107,7 +107,7 @@ class Rest
 	 * @return RestResponse|SimpleXMLElement|null
 	 * @throws RestException
 	 */
-	public static function get($url, array $data = [], array $headers = []): SimpleXMLElement|RestResponse|null
+	public static function get($url, array $data = [], array $headers = []): SimpleXMLElement|RestResponse|array|string|null
 	{
 		//New Curl object
 		$curl = self::getCurlObject();
@@ -117,7 +117,6 @@ class Rest
 		$curl->get($url, $data);
 		//Log the object
 		self::addToLog($curl);
-		echo json_encode($curl, JSON_PRETTY_PRINT);
 		//Search for an error or return results.
 		if($curl->error === true)
 		{

@@ -71,7 +71,7 @@ class Json implements \JsonSerializable
 	 * Allows dynamic calling of properties
 	 * @param string $name
 	 * @return mixed
-	 *@throws Exception
+	 * @throws Exception
 	 */
 	public function __get(string $name): mixed
 	{

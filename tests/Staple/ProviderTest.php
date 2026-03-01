@@ -33,12 +33,12 @@ class FakeProviderAuthAdapter implements AuthAdapter
 	 * authentication as successful. If a non-boolean true is returned, authentication will
 	 * fail.
 	 *
-	 * @param Request $request
+	 * @param Request $credentials
 	 * @return bool
 	 */
-	public function getAuth($request): bool
+	public function getAuth($credentials): bool
 	{
-		$authHeader = $request->findHeader('Authorization');
+		$authHeader = $credentials->findHeader('Authorization');
 		$token = trim(str_ireplace('Bearer','', $authHeader));
 		if($token == self::AUTHORIZATION_TOKEN)
 			return true;
@@ -51,7 +51,7 @@ class FakeProviderAuthAdapter implements AuthAdapter
 	 *
 	 * @return int
 	 */
-	public function getLevel()
+	public function getLevel(): mixed
 	{
 		return 1;
 	}
@@ -61,9 +61,14 @@ class FakeProviderAuthAdapter implements AuthAdapter
 	 *
 	 * @return mixed
 	 */
-	public function getUserId()
+	public function getUserId(): mixed
 	{
 		return 'Authed';
+	}
+
+	public function clear(): bool
+	{
+		return true;
 	}
 }
 
@@ -75,7 +80,7 @@ class ProviderTest extends TestCase
 	const ROUTE_OPTIONS = 'test/options-test';
 	const ROUTE_PROTECTED = 'test/protected';
 
-	protected function setUp()
+	protected function setUp(): void
 	{
 		//Clear auth before each test.
 		Auth::get()->clearAuth();
