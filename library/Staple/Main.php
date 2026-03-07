@@ -62,6 +62,11 @@ class Main
 	 * @var Error
 	 */
 	protected $errorHandler;
+
+	/**
+	 * @var bool
+	 */
+	protected bool $handlersSet = false;
 	
 	/**
 	 * Private constructor insures that the application is instantiated as a Singleton.
@@ -204,8 +209,23 @@ class Main
 		//Set the error handlers
 		set_error_handler(array($this->errorHandler,'handleError'), E_USER_ERROR | E_USER_WARNING | E_WARNING);
 		set_exception_handler(array($this->errorHandler,'handleException'));
+		$this->handlersSet = true;
 		
 		return $this;
+	}
+
+	/**
+	 * Restores the previous error and exception handlers.
+	 * @return void
+	 */
+	public function restoreErrorHandlers(): void
+	{
+		if($this->handlersSet)
+		{
+			restore_error_handler();
+			restore_exception_handler();
+			$this->handlersSet = false;
+		}
 	}
 
 	/**

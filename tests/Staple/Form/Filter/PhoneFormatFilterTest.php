@@ -1,6 +1,6 @@
 <?php
 /**
- * Unit Tests for \Staple\Encrypt object
+ * Unit Tests for \Staple\Form\Filter\PhoneFormatFilter object
  *
  * @author Ironpilot
  * @copyright Copyright (c) 2011, STAPLE CODE
@@ -20,29 +20,24 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with the STAPLE Framework.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 namespace Staple\Tests;
-
-
 use PHPUnit\Framework\TestCase;
-use Staple\Encrypt;
-
-class EncryptTest extends TestCase
+use Staple\Form\Filter\PhoneFormatFilter;
+class PhoneFormatFilterTest extends TestCase
 {
-	private $key = 'kASMCL^TRB8A<UQwOcgsHDKhgUs[ZtMe';
-	private $salt = 'askdfRIUF';
-	private $pepper = 'orpDjk34';
+    private function getTestObject()
+    {
+        return new PhoneFormatFilter();
+    }
+    /**
+     * Test the ability to format a phone number
+     */
+    public function testPhoneFilter()
+    {
+        $number = '1.123.456.7890';
+        $format = $this->getTestObject();
+        $this->assertEquals('1 (123) 456-7890',$format->filter($number));
 
-	public function testEncryptAndDecrypt()
-	{
-		$originalString = 'Blah encrypted string.';
-
-		$iv = openssl_random_pseudo_bytes(16);
-
-		$encrypted = Encrypt::encrypt($originalString, $this->key, Encrypt::AES256, $this->salt, $this->pepper, $iv);
-
-		$decryptedString = Encrypt::decrypt($encrypted,$this->key, Encrypt::AES256, $this->salt, $this->pepper, $iv);
-
-		$this->assertEquals($originalString,$decryptedString);
-	}
+        $this->assertEquals('phone', $format->getName());
+    }
 }

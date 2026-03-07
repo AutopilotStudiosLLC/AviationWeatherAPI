@@ -1,15 +1,17 @@
-<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd"
-         bootstrap="bootstrap.php"
-         colors="true">
+<phpunit bootstrap="bootstrap.php" colors="true" failOnWarning="true">
     <testsuites>
         <testsuite name="Staple Test Suite">
-            <directory>Staple</directory>
+            <directory>Staple/</directory>
         </testsuite>
     </testsuites>
-    <coverage>
+    <filter>
+        <whitelist processUncoveredFilesFromWhitelist="true">
+            <directory suffix=".php">../library/Staple/</directory>
+        </whitelist>
+    </filter>
+    <source ignoreIndirectDeprecations="true" restrictNotices="true" restrictWarnings="true">
         <include>
-            <directory suffix=".php">../library/Staple</directory>
+            <directory>../library/Staple</directory>
         </include>
-    </coverage>
+    </source>
 </phpunit>

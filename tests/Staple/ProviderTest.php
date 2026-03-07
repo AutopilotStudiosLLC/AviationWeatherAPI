@@ -9,12 +9,16 @@
 namespace Staple\Tests;
 
 use PHPUnit\Framework\TestCase;
+use ReflectionException;
 use Staple\Auth\Auth;
 use Staple\Auth\AuthAdapter;
 use Staple\Auth\AuthRoute;
 use Staple\Exception\AuthException;
+use Staple\Exception\ConfigurationException;
 use Staple\Exception\PageNotFoundException;
 use Staple\Exception\RoutingException;
+use Staple\Exception\SessionException;
+use Staple\Exception\SystemException;
 use Staple\Request;
 use Staple\Route;
 
@@ -25,7 +29,7 @@ class FakeProviderAuthAdapter implements AuthAdapter
 	const AUTHORIZATION_TOKEN = '68E769C73E6BD6EA64CEFCF1ED8BC';
 
 	/** @var mixed */
-	private $userId;
+	private mixed $userId;
 
 	/**
 	 * This function must be implemented to check the authorization based on the adapter
@@ -33,13 +37,13 @@ class FakeProviderAuthAdapter implements AuthAdapter
 	 * authentication as successful. If a non-boolean true is returned, authentication will
 	 * fail.
 	 *
-	 * @param Request $credentials
+	 * @param Request $request
 	 * @return bool
 	 */
-	public function getAuth($credentials): bool
+	public function getAuth(mixed $request): bool
 	{
-		$authHeader = $credentials->findHeader('Authorization');
-		$token = trim(str_ireplace('Bearer','', $authHeader));
+		$authHeader = Request::get()->findHeader('Authorization');
+		$token = trim(str_ireplace('Bearer','', (string)$authHeader));
 		if($token == self::AUTHORIZATION_TOKEN)
 			return true;
 		return false;
@@ -49,7 +53,7 @@ class FakeProviderAuthAdapter implements AuthAdapter
 	 * This function must be implemented to return a numeric level of access. This level is
 	 * used to determine feature access based on account type.
 	 *
-	 * @return int
+	 * @return mixed
 	 */
 	public function getLevel(): mixed
 	{
@@ -68,6 +72,7 @@ class FakeProviderAuthAdapter implements AuthAdapter
 
 	public function clear(): bool
 	{
+		$this->userId = null;
 		return true;
 	}
 }
@@ -80,10 +85,21 @@ class ProviderTest extends TestCase
 	const ROUTE_OPTIONS = 'test/options-test';
 	const ROUTE_PROTECTED = 'test/protected';
 
+	/**
+	 * @throws SystemException
+	 * @throws SessionException
+	 * @throws ConfigurationException
+	 */
 	protected function setUp(): void
 	{
 		//Clear auth before each test.
 		Auth::get()->clearAuth();
+	}
+
+	protected function tearDown(): void
+	{
+		\Staple\Main::get()->restoreErrorHandlers();
+		parent::tearDown();
 	}
 
 	public function testRouting()
@@ -179,6 +195,15 @@ class ProviderTest extends TestCase
 		$route->execute();
 	}
 
+	/**
+	 * @throws SystemException
+	 * @throws SessionException
+	 * @throws AuthException
+	 * @throws RoutingException
+	 * @throws ConfigurationException
+	 * @throws PageNotFoundException
+	 * @throws ReflectionException
+	 */
 	public function testAuthenticatedRoutingWithMethodProtection()
 	{
 		//Setup Auth Object

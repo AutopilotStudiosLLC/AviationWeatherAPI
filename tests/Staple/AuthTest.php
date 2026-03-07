@@ -12,6 +12,9 @@ use PHPUnit\Framework\TestCase;
 use Staple\Auth\Auth;
 use Staple\Auth\AuthAdapter;
 use Staple\Auth\AuthRoute;
+use Staple\Exception\ConfigurationException;
+use Staple\Query\Connection;
+use \Exception;
 
 class FakeAuthAdapter implements AuthAdapter
 {
@@ -27,13 +30,6 @@ class FakeAuthAdapter implements AuthAdapter
 	/** @var int */
 	private $userLevel = 0;
 
-	public function clear(): bool
-	{
-		$this->userId = null;
-		$this->userLevel = 0;
-		return true;
-	}
-
 	/**
 	 * This function must be implemented to check the authorization based on the adapter
 	 * at hand. The function must return a boolean true for the Staple_Auth object to view
@@ -43,7 +39,7 @@ class FakeAuthAdapter implements AuthAdapter
 	 * @param mixed $credentials
 	 * @return bool
 	 */
-	public function getAuth($credentials): bool
+	public function getAuth(mixed $credentials): bool
 	{
 		if(is_array($credentials))
 		{
@@ -68,9 +64,9 @@ class FakeAuthAdapter implements AuthAdapter
 	 * This function must be implemented to return a numeric level of access. This level is
 	 * used to determine feature access based on account type.
 	 *
-	 * @return int
+	 * @return mixed
 	 */
-	public function getLevel()
+	public function getLevel(): mixed
 	{
 		return $this->userLevel;
 	}
@@ -88,9 +84,21 @@ class FakeAuthAdapter implements AuthAdapter
 	 *
 	 * @return mixed
 	 */
-	public function getUserId()
+	public function getUserId(): mixed
 	{
 		return $this->userId;
+	}
+
+	/**
+	 * @param Route $route
+	 * @param $requiredLevel
+	 * @param \ReflectionClass|null $reflectionClass
+	 * @param \ReflectionMethod|null $reflectionMethod
+	 * @return bool
+	 */
+	public function authRoute(\Staple\Route $route, $requiredLevel, \ReflectionClass $reflectionClass = null, \ReflectionMethod $reflectionMethod = null): bool
+	{
+		return true;
 	}
 
 	/**
@@ -100,17 +108,44 @@ class FakeAuthAdapter implements AuthAdapter
 	{
 		$this->userId = $user;
 	}
+
+	public function clear(): bool
+	{
+		$this->userId = null;
+		$this->userLevel = 0;
+		return true;
+	}
 }
 
 class AuthTest extends TestCase
 {
+	/**
+	 * @throws ConfigurationException
+	 */
+	protected function setUp(): void
+	{
+		$conn = Connection::get();
+		$conn->query('CREATE TABLE IF NOT EXISTS accounts (id INT PRIMARY KEY, username VARCHAR(50), password VARCHAR(50), accountType VARCHAR(10))');
+	}
 
+	/**
+	 * @throws ConfigurationException
+	 */
+	protected function tearDown(): void
+	{
+		$conn = Connection::get();
+		$conn->query('DROP TABLE IF EXISTS accounts');
+	}
 
 	public function getAuth()
 	{
 		return new Auth();
 	}
 
+	/**
+	 * @test
+	 * @throws Exception
+	 */
 	public function testLoginWithArrayOfCredentials()
 	{
 		$auth = $this->getAuth();
@@ -127,6 +162,10 @@ class AuthTest extends TestCase
 		$this->assertTrue($auth->isAuthed());
 	}
 
+	/**
+	 * @test
+	 * @throws Exception
+	 */
 	public function testFailedLoginWithArrayOfCredentials()
 	{
 		$auth = $this->getAuth();
@@ -143,6 +182,10 @@ class AuthTest extends TestCase
 		$this->assertFalse($auth->isAuthed());
 	}
 
+	/**
+	 * @test
+	 * @throws Exception
+	 */
 	public function testLoginAndLogOut()
 	{
 		$auth = $this->getAuth();
@@ -153,6 +196,7 @@ class AuthTest extends TestCase
 		];
 		$authed = $auth->doAuth($credentials);
 
+		$this->assertEquals(FakeAuthAdapter::class, $auth->getAdapterImplementation());
 		$this->assertTrue($authed);
 		$this->assertEquals($credentials, $auth->getAuthId());
 		$this->assertEquals(1, $auth->getAuthLevel());
@@ -162,6 +206,7 @@ class AuthTest extends TestCase
 		//Clear the auth
 		$auth->clearAuth();
 
+		$this->assertEquals(FakeAuthAdapter::class, $auth->getAdapterImplementation());
 		$this->assertFalse($auth->isAuthed());
 		$this->assertEquals('Logged Out', $auth->getMessage());
 		$this->assertEquals(null, $auth->getAuthId());

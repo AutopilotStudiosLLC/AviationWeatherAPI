@@ -118,7 +118,7 @@ class ViewTest extends TestCase
 		$view = View::create();
 
 		//Assert that we got a view object back
-		$this->assertInstanceOf(\Staple\View::class,$view);
+		$this->assertInstanceOf('\\Staple\\View',$view);
 	}
 
 	/**

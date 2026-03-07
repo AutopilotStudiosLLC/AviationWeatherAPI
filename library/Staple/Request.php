@@ -33,15 +33,14 @@ class Request
 	const METHOD_DELETE = 'DELETE';
 	const METHOD_OPTIONS = 'OPTIONS';
 
-	protected static $inst;
+	protected static Request $inst;
 
-	/** @var string */
-	protected $uri;
+	protected string $uri;
 	/**
 	 * Array of headers for the request
 	 * @var array $headers
 	 */
-	protected $headers;
+	protected array $headers;
 	protected $server_port;
 	protected $remote_port;
 	protected $path;
@@ -118,7 +117,7 @@ class Request
 	/**
 	 * @return Request
 	 */
-	public static function get()
+	public static function get(): Request
 	{
 		if (!isset(self::$inst)) 
 		{
@@ -135,7 +134,7 @@ class Request
 	 * @param string[] $headers
 	 * @return Request
 	 */
-	public static function fake($uri, $method, array $headers = [])
+	public static function fake(string $uri, string $method, array $headers = []): Request
 	{
 		self::$inst = new self();
 		self::$inst->setUri($uri);
@@ -148,7 +147,7 @@ class Request
 	 * Checks the PHP $_SERVER var for the presence of HTTPS. Returns a boolean.
 	 * @return boolean
 	 */
-	public static function isSecure()
+	public static function isSecure(): bool
 	{
 		if(!isset(self::$secure))
 		{
@@ -179,10 +178,10 @@ class Request
 				self::$secure = false;
 			}
 		}
-		return (bool)self::$secure;
+		return self::$secure;
 	}
 	
-	public function Path()
+	public function Path(): string
 	{
 		return $this->path;
 	}
@@ -202,26 +201,26 @@ class Request
 		return $this->userAgent;
 	}
 	
-	public static function getGETString(array $exclude = array())
+	public static function getGETString(array $exclude = array()): void
 	{
-		$getstring = '';
+		$getString = '';
 		foreach($_GET as $key=>$value)
 		{
 			if(!in_array($key, $exclude))
 			{
-				if($getstring == '')
+				if($getString == '')
 				{
-					$getstring = urlencode($key).'='.urlencode($value);
+					$getString = urlencode($key).'='.urlencode($value);
 				}
 				else
 				{
-					$getstring .= '&'.urlencode($key).'='.urlencode($value);
+					$getString .= '&'.urlencode($key).'='.urlencode($value);
 				}
 			}
 		}
 	}
-	
-	public static function Redirect(Route $route, array $get = array())
+
+	public static function Redirect(Route $route, array $get = array()): void
 	{
 		$to = (string)$route;
 		if($get != array())
@@ -236,7 +235,7 @@ class Request
 	 * Grab the contents of the POST body.
 	 * @return bool|string
 	 */
-	public static function BodyContent()
+	public static function BodyContent(): bool|string
 	{
 		return file_get_contents('php://input');
 	}
@@ -245,7 +244,7 @@ class Request
 	 * Grab the content of the request and JSON decode it to a PHP object or array.
 	 * @return \stdClass|array|null
 	 */
-	public static function JsonContent()
+	public static function JsonContent(): array|\stdClass|null
 	{
 		$post = self::BodyContent();
 		return ($post === false) ? null : json_decode($post);
@@ -254,7 +253,7 @@ class Request
 	/**
 	 * @return string
 	 */
-	public function getUri()
+	public function getUri(): string
 	{
 		return $this->uri;
 	}
@@ -263,7 +262,7 @@ class Request
 	 * @param string $uri
 	 * @return Request
 	 */
-	protected function setUri(string $uri)
+	protected function setUri(string $uri): static
 	{
 		$this->uri = $uri;
 
@@ -273,7 +272,7 @@ class Request
 	/**
 	 * @return string
 	 */
-	public function getMethod()
+	public function getMethod(): string
 	{
 		return $this->method;
 	}
@@ -281,7 +280,7 @@ class Request
 	/**
 	 * @param string $method
 	 */
-	protected function setMethod(string $method)
+	protected function setMethod(string $method): void
 	{
 		$this->method = $method;
 	}
@@ -290,7 +289,7 @@ class Request
 	 * Get all the request headers as an array.
 	 * @return array|false
 	 */
-	public function getHeaders()
+	public function getHeaders(): false|array
 	{
 		return $this->headers;
 	}
@@ -300,7 +299,7 @@ class Request
 	 * @param string $key
 	 * @return mixed|null
 	 */
-	public function findHeader(string $key)
+	public function findHeader(string $key): mixed
 	{
 		return $this->headers[$key] ?? null;
 	}

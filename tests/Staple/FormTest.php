@@ -38,9 +38,9 @@ use Staple\Form\SelectElement;
 use Staple\Form\SubmitElement;
 use Staple\Form\TextareaElement;
 use Staple\Form\TextElement;
-use Staple\Form\Validate\EqualValidator;
-use Staple\Form\Validate\InArrayValidator;
-use Staple\Form\Validate\LengthValidator;
+use Staple\Validate\EqualValidator;
+use Staple\Validate\InArrayValidator;
+use Staple\Validate\LengthValidator;
 use Staple\Form\ViewAdapters\BootstrapViewAdapter;
 use Staple\Form\ViewAdapters\ElementViewAdapter;
 use Staple\Form\ViewAdapters\FoundationViewAdapter;
@@ -147,7 +147,7 @@ class FormTest extends TestCase
 				SelectElement::create('birthyear', 'Year of Birth')
 					->setRequired()
 					->addOptionsArray(array('', '1994', '1995', '1996', '1997', '1998', '1999', '2000'), true)
-					->addValidator(new InArrayValidator(array('', '1994', '1995', '1996', '1997', '1998', '1999', '2000')))
+					->addValidator(new InArrayValidator(null, array('', '1994', '1995', '1996', '1997', '1998', '1999', '2000')))
 			)
 			->addField(RadioElement::create('spouse', 'I need to add a spouse:')
 				->addButtonsArray(array('Yes', 'No'))
@@ -169,10 +169,10 @@ class FormTest extends TestCase
 		$form3 = Form::create('MyTestForm');
 		$form4 = new Form('myForm', 'test/action');
 
-		$this->assertInstanceOf('Form', $form1);
-		$this->assertInstanceOf('Form', $form2);
-		$this->assertInstanceOf('Form', $form3);
-		$this->assertInstanceOf('Form', $form4);
+		$this->assertInstanceOf('\\Staple\\Form\\Form', $form1);
+		$this->assertInstanceOf('\\Staple\\Form\\Form', $form2);
+		$this->assertInstanceOf('\\Staple\\Form\\Form', $form3);
+		$this->assertInstanceOf('\\Staple\\Form\\Form', $form4);
 	}
 
 	/**
@@ -576,6 +576,11 @@ class FormTest extends TestCase
 		$this->assertEquals($expectedOutput, $output);
 	}
 
+    /**
+     * @test
+     * @throws \Staple\Exception\FormBuildException
+     * @throws \Exception
+     */
 	public function testFormFoundationBuildWithErrors()
 	{
 		$form = $this->getComplexTestForm();

@@ -29,14 +29,14 @@ use Staple\Session\Session;
 
 class Registry
 {
-	protected static $store = array();
+	protected static array $store = array();
 
 	/**
 	 * Returns a booleon if the specified key exists in the store.
 	 * @param string $key
 	 * @return bool
 	 */
-	public static function isValid($key)
+	public static function isValid(string $key): bool
 	{
 		$data = Session::register($key);
 		if(!is_null($data))
@@ -52,7 +52,7 @@ class Registry
 	 * @param string $key
 	 * @return mixed|NULL
 	 */
-	public static function get($key)
+	public static function get(string $key): mixed
 	{
 		if(array_key_exists($key, self::$store))
 			return self::$store[$key];
@@ -75,7 +75,7 @@ class Registry
 	 * @param mixed $obj
 	 * @param bool $storeInSession
 	 */
-	public static function set($key, $obj, $storeInSession = true)
+	public static function set(string $key, mixed $obj, bool $storeInSession = true): void
 	{
 		//We can't store resources in the session.
 		if(!is_resource($obj) && $storeInSession === true)
@@ -86,7 +86,10 @@ class Registry
 		//Store the value locally as well.
 		self::$store[$key] = $obj;
 	}
-	
+
+	/**
+	 * @throws Exception
+	 */
 	public function __clone()
     {
         throw new Exception('Clone is not allowed.');

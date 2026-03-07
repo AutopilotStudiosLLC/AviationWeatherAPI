@@ -23,11 +23,19 @@
 namespace Staple\Tests;
 
 use PHPUnit\Framework\TestCase;
+use ReflectionException;
 use Staple\Auth\Auth;
 use Staple\Auth\AuthAdapter;
 use Staple\Auth\AuthRoute;
+use Staple\Exception\NotAuthorizedException;
 use Staple\Request;
 use Staple\Route;
+use \Staple\Exception\AuthException;
+use \Staple\Exception\ConfigurationException;
+use \Staple\Exception\PageNotFoundException;
+use \Staple\Exception\RoutingException;
+use \Staple\Exception\SessionException;
+use \Staple\Exception\SystemException;
 
 class FakeCtrlAuthAdapter implements AuthAdapter
 {
@@ -52,7 +60,7 @@ class FakeCtrlAuthAdapter implements AuthAdapter
 	 * @param mixed $credentials
 	 * @return bool
 	 */
-	public function getAuth($credentials): bool
+	public function getAuth(mixed $credentials): bool
 	{
 		if(is_array($credentials))
 		{
@@ -77,9 +85,9 @@ class FakeCtrlAuthAdapter implements AuthAdapter
 	 * This function must be implemented to return a numeric level of access. This level is
 	 * used to determine feature access based on account type.
 	 *
-	 * @return int
+	 * @return mixed
 	 */
-	public function getLevel()
+	public function getLevel(): mixed
 	{
 		return $this->userLevel;
 	}
@@ -97,9 +105,14 @@ class FakeCtrlAuthAdapter implements AuthAdapter
 	 *
 	 * @return mixed
 	 */
-	public function getUserId()
+	public function getUserId(): mixed
 	{
 		return $this->userId;
+	}
+
+	public function authRoute(\Staple\Route $route, $requiredLevel, \ReflectionClass $reflectionClass = null, \ReflectionMethod $reflectionMethod = null): bool
+	{
+		return true;
 	}
 
 	/**
@@ -112,6 +125,8 @@ class FakeCtrlAuthAdapter implements AuthAdapter
 
 	public function clear(): bool
 	{
+		$this->userLevel = 0;
+		$this->userId = null;
 		return true;
 	}
 }
@@ -122,13 +137,31 @@ class ControllerTest extends TestCase
 	const ROUTE_AUTHENTICATED = 'test/authenticated';
 	const ROUTE_PROTECTED = 'protected/data';
 	const ROUTE_UNPROTECTED_VIEW = 'protected/index';
+	const NOINDEX_ROUTE1_RESULT = 'Account List...';
 
+	/**
+	 * @throws ConfigurationException
+	 * @throws SessionException
+	 * @throws SystemException
+	 */
 	protected function setUp(): void
 	{
 		//Clear auth before each test.
 		Auth::get()->clearAuth();
 	}
 
+	protected function tearDown(): void
+	{
+		\Staple\Main::get()->restoreErrorHandlers();
+		parent::tearDown();
+	}
+
+	/**
+	 * @throws AuthException
+	 * @throws PageNotFoundException
+	 * @throws RoutingException
+	 * @throws ReflectionException
+	 */
 	public function testRouting()
 	{
 		//View Route
@@ -141,6 +174,17 @@ class ControllerTest extends TestCase
 		$this->assertEquals('This is a test View.', $textBuffer);
 	}
 
+	/**
+	 * @test
+	 * @throws AuthException
+	 * @throws ConfigurationException
+	 * @throws PageNotFoundException
+	 * @throws RoutingException
+	 * @throws SessionException
+	 * @throws SystemException
+	 * @throws ReflectionException
+	 * @throws NotAuthorizedException
+	 */
 	public function testAuthenticatedRouting()
 	{
 		//Setup Auth Object
@@ -172,6 +216,17 @@ class ControllerTest extends TestCase
 		$this->assertTrue($auth->isAuthed());
 	}
 
+	/**
+	 * @test
+	 * @throws AuthException
+	 * @throws ConfigurationException
+	 * @throws PageNotFoundException
+	 * @throws RoutingException
+	 * @throws SessionException
+	 * @throws SystemException
+	 * @throws ReflectionException
+	 * @throws NotAuthorizedException
+	 */
 	public function testAuthenticatedRoutingWithGlobalControllerProtection()
 	{
 		//View Route
@@ -210,5 +265,49 @@ class ControllerTest extends TestCase
 
 		$this->assertEquals('Authenticated Content', $textBuffer);
 		$this->assertTrue($auth->isAuthed());
+	}
+
+	/**
+	 * @test
+	 * @throws AuthException
+	 * @throws PageNotFoundException
+	 * @throws RoutingException
+	 * @throws ReflectionException
+	 */
+	public function testIndexNotRequired()
+	{
+		$route1 = new Route('no-index/account');
+		$route2 = new Route('no-index/index');
+		$route3 = new Route('no-index');
+
+		//Route 1
+		ob_start();
+		$route1->execute();
+		$route1Result = ob_get_contents();
+		ob_end_clean();
+
+		//Route 2
+		try
+		{
+			$route2->execute();
+			$this->fail('Should Throw PageNotFoundException');
+		}
+		catch (PageNotFoundException $e)
+		{
+			$this->assertEquals('Page Not Found', $e->getMessage());
+		}
+
+		//Route 3
+		try
+		{
+			$route3->execute();
+			$this->fail('Should Throw PageNotFoundException');
+		}
+		catch (PageNotFoundException $e)
+		{
+			$this->assertEquals('Page Not Found', $e->getMessage());
+		}
+
+		$this->assertEquals(self::NOINDEX_ROUTE1_RESULT, $route1Result);
 	}
 }

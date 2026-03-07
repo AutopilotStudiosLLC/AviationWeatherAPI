@@ -25,6 +25,7 @@
  */
 namespace Staple;
 
+use Exception;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
 
@@ -36,15 +37,16 @@ class TwigView extends View
 	 * This function renders the view. If accepts a string representing the controller and
 	 * a string representing the requested action. With this information the correct view
 	 * is selected and rendered.
-	 * @return string
+	 * @return string | null
+	 * @throws Exception
 	 */
-	public function build()
+	public function build(): string | null
 	{
-		if($this->_render === true)
+		if ($this->_render === true)
 		{
 			if (isset($this->_staticView))
 			{
-				//Load the view from the static view content folder - Possibly move this to the auto loader at a later date.
+				//Load the view from the static view content folder - Possibly move this to the autoloader at a later date.
 				$view = STATIC_ROOT . $this->_staticView . '.' . static::STATIC_VIEW_EXTENSION;
 				if (file_exists($view))
 				{
@@ -65,8 +67,8 @@ class TwigView extends View
 						$this->addData('model', $this->_viewModel);
 					}
 
-					//Setup local $form variable, if set
-					if(isset($this->_viewForm))
+					// Set up local $form variable, if set
+					if (isset($this->_viewForm))
 					{
 						$this->addData('form', $this->_viewForm);
 					}
@@ -74,11 +76,11 @@ class TwigView extends View
 					$viewContents = file_get_contents($view);
 
 					//Make a Twig
-					$twigLoader = new ArrayLoader(['view.html'=>$viewContents]);
+					$twigLoader = new ArrayLoader(['view.html' => $viewContents]);
 					$twig = new Environment($twigLoader);
 
 					//include the view
-					$twig->display('view.html',(array)$this->_store);
+					$twig->display('view.html', (array)$this->_store);
 				}
 			}
 		}
@@ -87,5 +89,6 @@ class TwigView extends View
 			//skip rendering of an additional views
 			$this->_render = false;
 		}
+		return null;
 	}
 }

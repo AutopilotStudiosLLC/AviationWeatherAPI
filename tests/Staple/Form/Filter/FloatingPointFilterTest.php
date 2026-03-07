@@ -1,6 +1,6 @@
 <?php
 /**
- * Unit Tests for \Staple\Encrypt object
+ * Test Cases for SelectElement Class
  *
  * @author Ironpilot
  * @copyright Copyright (c) 2011, STAPLE CODE
@@ -19,30 +19,41 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with the STAPLE Framework.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 
 namespace Staple\Tests;
 
-
+use Staple\Form\Filter\FloatingPointFilter;
 use PHPUnit\Framework\TestCase;
-use Staple\Encrypt;
 
-class EncryptTest extends TestCase
+class FloatingPointFilterTest extends TestCase
 {
-	private $key = 'kASMCL^TRB8A<UQwOcgsHDKhgUs[ZtMe';
-	private $salt = 'askdfRIUF';
-	private $pepper = 'orpDjk34';
-
-	public function testEncryptAndDecrypt()
+	/**
+	 * @return FloatingPointFilter
+	 */
+	private function getTestIntegerFilter()
 	{
-		$originalString = 'Blah encrypted string.';
+		return new FloatingPointFilter();
+	}
 
-		$iv = openssl_random_pseudo_bytes(16);
+	/**
+	 * Standard Output Build Test
+	 * @test
+	 */
+	public function testFilter()
+	{
+		$filter = $this->getTestIntegerFilter();
 
-		$encrypted = Encrypt::encrypt($originalString, $this->key, Encrypt::AES256, $this->salt, $this->pepper, $iv);
+		$test1 = $filter->filter('test123');
+		$test2 = $filter->filter('123.23');
+		$test3 = $filter->filter('47ronin');
+		$test4 = $filter->filter('89.99 dollars');
 
-		$decryptedString = Encrypt::decrypt($encrypted,$this->key, Encrypt::AES256, $this->salt, $this->pepper, $iv);
-
-		$this->assertEquals($originalString,$decryptedString);
+		$this->assertEquals(0, $test1);
+		$this->assertEquals(123.23, $test2);
+		$this->assertEquals(47, $test3);
+		$this->assertEquals(89.99, $test4);
+		$this->assertEquals('float', $filter->getName());
 	}
 }

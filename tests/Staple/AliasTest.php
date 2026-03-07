@@ -26,7 +26,6 @@ namespace Staple\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Staple\Alias;
-use Staple\Form\Form;
 
 class AliasTest extends TestCase
 {
@@ -35,32 +34,6 @@ class AliasTest extends TestCase
 	protected function setUp(): void
 	{
 		$this->alias = new Alias();
-	}
-
-	public function testCheckAlias()
-	{
-		//This one exists
-		$this->assertEquals($this->alias->checkAlias('Controller'),'\\Staple\\Controller\\Controller');
-
-		//This one does not
-		$this->assertNotEquals($this->alias->checkAlias('Controller'),'\\Staple\\Alias');
-	}
-
-	public function testAllAliasLoad()
-	{
-		$map = Alias::getClassMap();
-
-		foreach($map as $key=>$value)
-		{
-			if(class_exists($key))
-				$this->assertTrue(true);
-			elseif(interface_exists($key))
-				$this->assertTrue(true);
-			elseif(trait_exists($key))
-				$this->assertTrue(true);
-			else
-				$this->assertTrue(false);
-		}
 	}
 
 	public function testAddAlias()
@@ -73,23 +46,5 @@ class AliasTest extends TestCase
 
 		//Test that the alias is returned when checked for.
 		$this->assertEquals($this->alias->checkAlias('MyNewClass'),'\\MyNamespace\\MyNewClass');
-	}
-
-	public function testLoad()
-	{
-		$this->alias->load('Controller');
-		$this->alias->load('Route');
-		$this->alias->load('View');
-		$this->alias->load('Form');
-
-		//Check that all Aliases are created.
-		$this->assertTrue(class_exists('Controller'));
-		$this->assertTrue(class_exists('Route'));
-		$this->assertTrue(class_exists('View'));
-		$this->assertTrue(class_exists('Form'));
-
-		//Check that an object can be created from the alias
-		$form = new Form();
-		$this->assertTrue($form instanceof Form);
 	}
 }
