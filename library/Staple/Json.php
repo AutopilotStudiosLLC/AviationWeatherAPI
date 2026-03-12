@@ -132,12 +132,12 @@ class Json implements \JsonSerializable
 	 */
 	public function __toString()
 	{
-		$flags = 0;
+		$flags = JSON_UNESCAPED_SLASHES;
 		if ($this->pretty)
 		{
-			$flags = JSON_PRETTY_PRINT;
+			$flags = JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT;
 		}
-		return json_encode($this->jsonSerialize(), $flags);
+		return json_encode($this->jsonSerialize(), $flags | JSON_NUMERIC_CHECK);
 	}
 
 	/**
@@ -156,6 +156,16 @@ class Json implements \JsonSerializable
 	public function getPretty(): bool
 	{
 		return $this->pretty;
+	}
+
+	public function getFlags(): int
+	{
+		$flags = JSON_UNESCAPED_SLASHES;
+		if ($this->pretty)
+		{
+			$flags = JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT;
+		}
+		return $flags | JSON_NUMERIC_CHECK;
 	}
 
 	/**
@@ -224,24 +234,27 @@ class Json implements \JsonSerializable
 	 * Return a successful JSON response and set the HTTP response code
 	 * @param mixed|null $data
 	 * @param int $code
+	 * @param bool $pretty
 	 * @return Json|string|null
 	 */
-	public static function success(mixed $data = NULL, int $code = self::DEFAULT_SUCCESS_CODE): Json|string|null
+	public static function success(mixed $data = NULL, int $code = self::DEFAULT_SUCCESS_CODE, bool $pretty = false): Json|string|null
 	{
-		return self::response($data, $code);
+		return self::response($data, $code, $pretty);
 	}
 
 	/**
 	 * Return a JSON-encoded HTTP response and set the HTTP response code.
 	 * @param mixed|null $data
 	 * @param int $code
+	 * @param bool $pretty
 	 * @return Json
 	 */
-	public static function response(mixed $data = NULL, int $code = self::DEFAULT_SUCCESS_CODE): Json
+	public static function response(mixed $data = NULL, int $code = self::DEFAULT_SUCCESS_CODE, bool $pretty = false): Json
 	{
 		$json = new static();
 		$json->setResponseCode($code);
 		$json->_data = $data;
+		$json->setPretty($pretty);
 		return $json;
 	}
 

@@ -184,7 +184,7 @@ abstract class RestfulController
 	 * @throws RoutingException
 	 * @throws Exception
 	 */
-	public function route(array $route = [])
+	public function route(array $route = []): bool
 	{
 		//Set the Action
 		if(count($route) >= 1)
@@ -275,7 +275,7 @@ abstract class RestfulController
 	 * @param string $method
 	 * @param array $params
 	 */
-	protected function dispatch(string $method, array $params)
+	protected function dispatch(string $method, array $params): void
 	{
 		try
 		{
@@ -304,7 +304,7 @@ abstract class RestfulController
 			}
 			elseif($return instanceof Json)    //Check for a Json object to be converted and echoed.
 			{
-				echo json_encode($return);
+				echo json_encode($return, $return->getFlags());
 			}
 			elseif($return instanceof Route)    //Allow a provider to return a route to redirect the program execution to.
 			{
@@ -343,7 +343,7 @@ abstract class RestfulController
 		catch(AuthException $e)
 		{
 			$details = ($this->isInDevMode()) ? $e->getTraceAsString() : null;
-			echo Json::authError($e->getMessage(), null, $details);
+			echo Json::authError($e->getMessage(), Json::DEFAULT_AUTH_ERROR_CODE, $details);
 		}
 		catch(NotAuthorizedException $e)
 		{

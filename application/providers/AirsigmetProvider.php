@@ -13,17 +13,17 @@ use Staple\Rest\Rest;
 
 class AirsigmetProvider extends RestfulController
 {
-	public function _start()
+	public function _start(): void
 	{
 		$this->addAccessControlOrigin('*');
 		$this->addAccessControlMethods([Request::METHOD_GET, Request::METHOD_OPTIONS]);
 	}
 
 	/**
-	 * @return string|null
+	 * @return Json|string|null
 	 * @throws Exception
 	 */
-	public function getIndex()
+	public function getIndex(): Json|string|null
 	{
 		$startTime = new DateTime('now', new DateTimeZone('UTC'));
 		$endTime = clone $startTime;
@@ -34,15 +34,15 @@ class AirsigmetProvider extends RestfulController
 		$obj->apis = [
 			'flight' => '/airsigmet/flight?corridor=60&path=KDEN;KLAX&startTime='.urlencode($startTime->format(DateTime::ISO8601)).'&endTime='.urlencode($endTime->format(DateTime::ISO8601)),
 		];
-		return Json::success($obj);
+		return Json::success($obj, Json::DEFAULT_SUCCESS_CODE, true);
 	}
 
 	/**
 	 * Get a list of Metars based on a list of stations.
-	 * @return null|string
+	 * @return Json|string|null
 	 * @throws Exception
 	 */
-	public function getFlight()
+	public function getFlight(): Json|string|null
 	{
 		$corridorWidth = (float)($_GET['corridor'] ?? 60);
 		$flightPath = (string)($_GET['path'] ?? '');

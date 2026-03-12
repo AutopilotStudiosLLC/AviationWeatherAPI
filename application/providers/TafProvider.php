@@ -13,7 +13,7 @@ use Staple\Rest\Rest;
 
 class TafProvider extends RestfulController
 {
-	public function _start()
+	public function _start(): void
 	{
 		$this->addAccessControlOrigin('*');
 		$this->addAccessControlMethods([Request::METHOD_GET, Request::METHOD_OPTIONS]);
@@ -22,7 +22,7 @@ class TafProvider extends RestfulController
 	/**
 	 * @return string|null
 	 */
-	public function getIndex()
+	public function getIndex(): Json|string
 	{
 		$obj = new stdClass();
 		$obj->message = 'TAF Resource';
@@ -32,7 +32,7 @@ class TafProvider extends RestfulController
 			'list' => '/tat/list?stations=KDEN,KLAX',
 			'flight' => '/tat/flight?corridor=60&path=KDEN;KLAX',
 		];
-		return Json::success($obj);
+		return Json::success($obj, Json::DEFAULT_SUCCESS_CODE, true);
 	}
 
 	/**

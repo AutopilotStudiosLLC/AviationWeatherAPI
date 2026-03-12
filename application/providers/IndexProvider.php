@@ -5,7 +5,7 @@ use Staple\Json;
 
 class IndexProvider extends RestfulController
 {
-	public function getIndex()
+	public function getIndex(): Json
 	{
 		$obj = new stdClass();
 		$obj->message = 'Welcome to the Aviation Weather API';
@@ -16,6 +16,6 @@ class IndexProvider extends RestfulController
 			'pirep' => '/pirep',
 			'airsigmet' => '/airsigmet'
 		];
-		return Json::success($obj);
+		return Json::success($obj, Json::DEFAULT_SUCCESS_CODE, true);
 	}
 }

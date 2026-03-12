@@ -26,7 +26,7 @@ class PirepProvider extends RestfulController
 		$obj->apis = [
 			'flight' => '/pirep/flight?corridor=60&path=KDEN;KLAX',
 		];
-		return Json::success($obj);
+		return Json::success($obj, Json::DEFAULT_SUCCESS_CODE, true);
 	}
 
 	/**

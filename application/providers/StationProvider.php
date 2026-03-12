@@ -15,7 +15,7 @@ use Staple\Rest\Rest;
 
 class StationProvider extends RestfulController
 {
-	public function _start()
+	public function _start(): void
 	{
 		$this->addAccessControlOrigin('*');
 		$this->addAccessControlMethods([Request::METHOD_GET, Request::METHOD_OPTIONS]);
@@ -31,14 +31,14 @@ class StationProvider extends RestfulController
 			'local' => '/station/local?distance=50&latitude=39&longitude=-104',
 			'flight' => '/station/flight?path=KDEN;KLAX&corridor=50',
 		];
-		return Json::success($obj);
+		return Json::success($obj, Json::DEFAULT_SUCCESS_CODE, true);
 	}
 
 	/**
 	 * @param $ident
-	 * @return mixed
+	 * @return Json|string|null
 	 */
-	public function getInfo($ident)
+	public function getInfo($ident): Json|string|null
 	{
 		try
 		{
@@ -60,11 +60,10 @@ class StationProvider extends RestfulController
 
 	/**
 	 * Get local METAR data
-	 * @return null|string
+	 * @return Json|string
 	 */
-	public function getLocal()
+	public function getLocal(): Json|string
 	{
-		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 3);
 		$distance = (int)$_GET['distance'] ?? null;
 		$latitude = (float)$_GET['latitude'] ?? null;
 		$longitude = (float)$_GET['longitude'] ?? null;
@@ -88,7 +87,36 @@ class StationProvider extends RestfulController
 		}
 	}
 
-	public function getList()
+	/**
+	 * Get local METAR data
+	 * @return Json|string
+	 */
+	public function getMap(): Json|string
+	{
+		$distance = (int)$_GET['distance'] ?? null;
+		$latitude = (float)$_GET['latitude'] ?? null;
+		$longitude = (float)$_GET['longitude'] ?? null;
+
+		$box = $this->boundingBoxMiles($distance, $latitude, $longitude);
+		try
+		{
+			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/stationinfo', [
+				'bbox' => $box['minLat'].','.$box['minLon'].','.$box['maxLat'].','.$box['maxLon'],
+				'format' => 'xml',
+			]);
+			/** @var SimpleXMLElement $xml */
+			$xml = $response->data;
+			$xml->addChild('results', $xml['num_results']);
+			unset($xml['num_results']);
+			return Json::success($xml);
+		}
+		catch(RestException $e)
+		{
+			return Json::error($e->getMessage());
+		}
+	}
+
+	public function getList(): Json|string|null
 	{
 		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 3);
 		$stationString = (string)($_GET['stations'] ?? '');
@@ -112,9 +140,9 @@ class StationProvider extends RestfulController
 
 	/**
 	 * Get stations available along specified flight path.
-	 * @return string|null
+	 * @return Json|string|null
 	 */
-	public function getFlight()
+	public function getFlight(): Json|string|null
 	{
 		$corridorWidth = (float)($_GET['corridor'] ?? 60);
 		$flightPath = (string)($_GET['path'] ?? '');

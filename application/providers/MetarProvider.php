@@ -21,9 +21,9 @@ class MetarProvider extends RestfulController
 	}
 
 	/**
-	 * @return string|null
+	 * @return Json|string
 	 */
-	public function getIndex(): ?string
+	public function getIndex(): Json|string
 	{
 		$obj = new stdClass();
 		$obj->message = 'METAR Resource';
@@ -33,14 +33,14 @@ class MetarProvider extends RestfulController
 			'list' => '/metar/list?stations=KDEN,KLAX',
 			'flight' => '/metar/flight?corridor=60&path=KDEN;KLAX',
 		];
-		return Json::success($obj);
+		return Json::success($obj, Json::DEFAULT_SUCCESS_CODE, true);
 	}
 
 	/**
 	 * Get local METAR data
-	 * @return null|string
+	 * @return Json|string|null
 	 */
-	public function getLocal(): ?string
+	public function getLocal(): Json|string|null
 	{
 		$hoursBeforeNow = (float)($_GET['hoursBeforeNow'] ?? 3);
 		$distance = (int)$_GET['distance'] ?? null;
@@ -86,12 +86,13 @@ class MetarProvider extends RestfulController
 	 * Get recent METAR data
 	 * @param string $identifier
 	 * @param float $hoursBeforeNow
-	 * @return null|string
+	 * @return Json|string|null
+	 * @throws BadRequestException
 	 */
-	public function getRecent(string $identifier = 'KSEA', float $hoursBeforeNow = 3): ?string
+	public function getRecent(string $identifier = 'KSEA', float $hoursBeforeNow = 3): Json|string|null
 	{
 		if(!ctype_alnum(str_replace(',', '', $identifier))) {
-			return new BadRequestException();
+			throw new BadRequestException();
 		}
 
 		try
@@ -134,9 +135,9 @@ class MetarProvider extends RestfulController
 
 	/**
 	 * Get a list of Metars based on a list of stations.
-	 * @return null|string
+	 * @return Json|string|null
 	 */
-	public function getList(): ?string
+	public function getList(): Json|string|null
 	{
 		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 3);
 		$stationString = (string)($_GET['stations'] ?? '');
@@ -179,9 +180,9 @@ class MetarProvider extends RestfulController
 
 	/**
 	 * Get a list of Metars based on a list of stations.
-	 * @return null|string
+	 * @return Json|string|null
 	 */
-	public function getFlight(): ?string
+	public function getFlight(): Json|string|null
 	{
 		$corridorWidth = (float)($_GET['corridor'] ?? 60);
 		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 2);
