@@ -22,7 +22,6 @@
  */
 namespace Staple\Query;
 
-use ArrayAccess;
 use DateTime;
 use Exception;
 use PDO;

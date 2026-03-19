@@ -22,7 +22,6 @@
  */
 namespace Staple\Query;
 
-use ArrayAccess;
 use Exception;
 use Staple\Error;
 use Staple\Exception\ConfigurationException;
