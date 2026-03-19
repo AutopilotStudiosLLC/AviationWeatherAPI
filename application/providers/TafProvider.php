@@ -1,10 +1,14 @@
 <?php
-
 use Staple\Controller\RestfulController;
+use Staple\Exception\BadRequestException;
+use Staple\Exception\ConfigurationException;
+use Staple\Exception\ModelNotFoundException;
 use Staple\Exception\RestException;
 use Staple\Json;
 use Staple\Request;
 use Staple\Rest\Rest;
+
+const DATABASE_DATE_FORMAT = 'Y-m-d H:i:s';
 
 /**
  * Class TafProvider
@@ -31,6 +35,7 @@ class TafProvider extends RestfulController
 			'local' => '/taf/local?distance=50&latitude=39&longitude=-104',
 			'list' => '/tat/list?stations=KDEN,KLAX',
 			'flight' => '/tat/flight?corridor=60&path=KDEN;KLAX',
+			'taf' => '/taf/taf/KSEA?format=json&hours=2',
 		];
 		return Json::success($obj, Json::DEFAULT_SUCCESS_CODE, true);
 	}
@@ -49,25 +54,76 @@ class TafProvider extends RestfulController
 	/**
 	 * Get recent METAR data
 	 * @param string $identifier
-	 * @param int $hoursBeforeNow
 	 * @return Json|string
+	 * @throws BadRequestException
 	 */
-	public function getTaf($identifier = 'KSEA')
+	public function getTaf(string $identifier = 'KSEA'): Json|string
 	{
+		if(!ctype_alnum(str_replace(',', '', $identifier))) {
+			throw new BadRequestException('Invalid station identifier');
+		}
 		try
 		{
-			$format = (string)($_GET['format'] ?? 'default');
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/taf', [
-				'format' => 'json',
-				'ids' => strtoupper((string)$identifier),
-				'metar'=>'false',
-			]);
-			if ($format === 'json') {
-				return Json::success($response);
-			}
-			else
+			try
 			{
-				return Json::success($this->originalFormat($response));
+				$tafs = TafModel::select()
+					->columns(['tafs.*'])
+					->leftJoin(TafForecastModel::table(), 'taf_forecasts.taf_id = tafs.id')
+					->leftJoin('taf_forecast_clouds', 'taf_forecast_clouds.taf_forecast_id = taf_forecasts.id')
+					->whereEqual('tafs.icao_id',  $identifier)
+//					->whereStatement('tafs.icao_id = \''.strtoupper($identifier).'\' AND tafs.retrieved_at > DATE_SUB(NOW(), INTERVAL 30 SECOND)')
+					->orderBy('tafs.retrieved_at DESC')
+					->limit(3)
+					->get()
+					->toArray();
+
+				/** @var TafModel $taf */
+				foreach ($tafs as $taf) {
+					$forecasts = TafForecastModel::select()
+						->whereEqual('taf_id', $taf->id)
+						->get()->toArray();
+					$taf->forecasts = $forecasts;
+					/** @var TafForecastModel $forecast */
+					foreach ($forecasts as $forecast) {
+						/** @var TafForecastCloudModel $cloud */
+						$clouds = TafForecastCloudModel::select()
+							->whereEqual('taf_forecast_id', $forecast->id)
+							->get()->toArray();
+						$forecast->clouds = $clouds;
+					}
+				}
+				return Json::success($this->formatFromDatabase($tafs));
+			}
+			catch (ModelNotFoundException $e)
+			{
+				// If we don't have a cached response, get it from the API
+				$format = (string)($_GET['format'] ?? 'default');
+				$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT . '/taf', [
+					'format' => 'json',
+					'ids' => strtoupper($identifier),
+					'metar' => 'false',
+				]);
+
+				// Try to cache the response
+				try
+				{
+					TafModel::cache($response);
+				}
+				catch (Exception $e) {} // Ignoreing the caching errors for the moment
+
+				if ($format === 'json')
+				{
+					return Json::success($response);
+				}
+				else
+				{
+					return Json::success($this->originalFormat($response));
+				}
+			}
+			catch (ConfigurationException $e)
+			{
+				throw new BadRequestException($e->getMessage());
+				// Todo log the error
 			}
 		}
 		catch(RestException $e)
@@ -189,6 +245,61 @@ class TafProvider extends RestfulController
 		{
 			return Json::error($e->getMessage());
 		}
+	}
+
+	protected function formatFromDatabase(array $tafs): stdClass
+	{
+		$json = new stdClass();
+		$json->TAF = [];
+
+		$json->results = count($tafs);
+		foreach ($tafs as $taf)
+		{
+			$newTaf = new stdClass();
+			$newTaf->raw_text = $taf->raw_text;
+			$newTaf->station_id = $taf->icao_id;
+			if (isset($taf->issue_time))
+				$newTaf->issue_time = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->issue_time,)->format(AddsModel::DATETIME_FORMAT);
+			if (isset($taf->bulletin_time))
+				$newTaf->bulletin_time = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->bulletin_time,)->format(AddsModel::DATETIME_FORMAT);
+			if (isset($taf->valid_time_from))
+				$newTaf->valid_time_from = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->valid_time_from)->format(AddsModel::DATETIME_FORMAT);
+			if (isset($taf->valid_time_to))
+				$newTaf->valid_time_to = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->valid_time_to)->format(AddsModel::DATETIME_FORMAT);
+			$newTaf->latitude = $taf->lat;
+			$newTaf->longitude = $taf->lon;
+			$newTaf->elevation_m = $taf->elevation;
+			$newTaf->forecast = [];
+			foreach ($taf->forecasts as $forecast)
+			{
+				$newCast = new stdClass();
+				$newCast->fcst_time_from = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $forecast->time_from)->format(AddsModel::DATETIME_FORMAT);
+				$newCast->fcst_time_to = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $forecast->time_to)->format(AddsModel::DATETIME_FORMAT);
+				$newCast->change_indicator = $forecast->forecast_change;
+				$newCast->wind_dir_degrees = $forecast->wind_direction;
+				$newCast->wind_speed_kt = $forecast->wind_speed;
+				$newCast->visibility_statute_mi = $forecast->visibility;
+				$newCast->sky_condition = [];
+
+				$sky = $forecast->clouds;
+				foreach ($sky as $condition)
+				{
+					$newCond = new stdClass();
+					$newCond->sky_cover = $condition->cloud_cover;
+					$newCond->cloud_base_ft_agl = $condition->cloud_base;
+					if (count($sky) === 1)
+					{
+						$newCast->sky_condition = $newCond;
+					} else
+					{
+						$newCast->sky_condition[] = $newCond;
+					}
+				}
+				$newTaf->forecast[] = $newCast;
+			}
+			$json->TAF[] = $newTaf;
+		}
+		return $json;
 	}
 
 	protected function originalFormat(mixed $response): stdClass

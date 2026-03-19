@@ -22,6 +22,8 @@
  */
 namespace Staple\Query;
 
+use ArrayAccess;
+use DateTime;
 use Exception;
 use PDO;
 use Staple\Error;
@@ -39,66 +41,66 @@ class Insert
 	
 	/**
 	 * The database object. A database object is required to properly escape input.
-	 * @var Connection
+	 * @var IConnection
 	 */
-	protected $connection;
+	protected IConnection $connection;
 	/**
 	 * The data to insert. May be a Select Statement Object or an array of DataSets
-	 * @var DataSet | Select
+	 * @var DataSet | Select | array
 	 */
-	protected $data;
+	protected Select|DataSet|array $data;
 	/**
 	 * The Priority parameter of the SQL statement
-	 * @var string
+	 * @var string|null
 	 */
-	protected $priority;
+	protected ?string $priority = null;
 	/**
 	 * A boolean value used to set the IGNORE parameter
 	 * @var boolean
 	 */
-	protected $ignore = false;
+	protected bool $ignore = false;
 	/**
 	 * Table to update.
 	 * @var string
 	 */
-	protected $table;
+	protected string $table;
 	/**
 	 * The schema name.
 	 * @var string
 	 */
-	protected $schema;
+	protected string $schema;
 	
 	/**
 	 * Boolean flag for ON DUPLICATE KEY UPDATE
 	 * @var boolean
 	 */
-	protected $updateOnDuplicate = false;
+	protected bool $updateOnDuplicate = false;
 	/**
 	 * The columns to update on a duplicate key.
 	 * @var array[string]
 	 */
-	protected $updateColumns = array();
+	protected array $updateColumns = array();
 	/**
 	 * An array of column names to use in the insert statement.
 	 * @var array
 	 */
-	protected $columns;
+	protected array $columns;
 
 	/**
 	 * Set the flag for query parameterization
 	 * @var bool
 	 */
-	protected $parameterized = true;
+	protected bool $parameterized = true;
 
 	/**
-	 * @param string $table
-	 * @param array $data
-	 * @param IConnection $db
-	 * @param string $priority
+	 * @param string|null $table
+	 * @param array|null $data
+	 * @param IConnection|null $db
+	 * @param string|null $priority
 	 * @param bool $parameterized
 	 * @throws QueryException
 	 */
-	public function __construct($table = null, $data = null, IConnection $db = null, $priority = null, bool $parameterized = null)
+	public function __construct(string $table = null, array $data = null, IConnection $db = null, string $priority = null, bool $parameterized = null)
 	{
 		$this->data = new DataSet();
 		
@@ -118,7 +120,7 @@ class Insert
 				throw new QueryException('Unable to find a database connection.', Error::DB_ERROR, $e);
 			}
 		}
-		if(!($this->connection instanceof Connection))
+		if(!($this->connection instanceof IConnection))
 		{
 			throw new QueryException('Unable to create database object', Error::DB_ERROR);
 		}
@@ -173,7 +175,7 @@ class Insert
 	 * @throws QueryException
 	 * @throws ConfigurationException
 	 */
-	function build(bool $parameterized = null)
+	function build(bool $parameterized = null): string
 	{
 		if(isset($parameterized))
 			$this->setParameterized($parameterized);
@@ -251,7 +253,7 @@ class Insert
 	 * @throws ConfigurationException
 	 * @return IStatement | bool
 	 */
-	public function execute()
+	public function execute(): bool|IStatement
 	{
 		//Make sure we have a connection object
 		if(!($this->connection instanceof Connection))
@@ -291,7 +293,7 @@ class Insert
 	 * @return array|string[]
 	 * @throws QueryException
 	 */
-	public function getParams()
+	public function getParams(): array
 	{
 		if($this->data instanceof DataSet)
 		{
@@ -318,17 +320,11 @@ class Insert
 	 * @param IStatement $statement
 	 * @throws QueryException
 	 */
-	private function bindParametersToStatement(&$statement)
+	private function bindParametersToStatement(IStatement &$statement): void
 	{
 		foreach($this->getParams() as $name=>$value)
 		{
 			$varType = gettype($value);
-
-			//Don't bind nulls because they are converted to IS NULL by the query builder.
-			if($varType === 'NULL')
-			{
-				continue;
-			}
 
 			//Bind other types.
 			switch($varType)
@@ -351,7 +347,14 @@ class Insert
 				case "object":
 					try
 					{
-						$value = (string)$value;
+						if ($value instanceof DateTime)
+						{
+							$value = $value->format('Y-m-d H:i:s');
+						}
+						else
+						{
+							$value = (string)$value;
+						}
 					}
 					catch(Exception $e)
 					{
@@ -362,7 +365,6 @@ class Insert
 				case "resource":
 				case "resource (closed)":
 					throw new QueryException('Cannot supply a resource to a query.');
-					break;
 				case "NULL":
 					$type = PDO::PARAM_NULL;
 					break;
@@ -385,7 +387,7 @@ class Insert
 	 * @throws QueryException
 	 * @return $this
 	 */	
-	public function addData(array $data)
+	public function addData(array $data): static
 	{
 		if($this->data instanceof Select)
 		{
@@ -399,11 +401,11 @@ class Insert
 	 * Adds or replaces a specific column value. Alias is set Data Column
 	 * @param string $column
 	 * @param mixed $data
-	 * @throws QueryException
-	 * @see self::setDataColumn
 	 * @return $this
+	 *@throws QueryException
+	 * @see self::setDataColumn
 	 */
-	public function addDataColumn($column, $data)
+	public function addDataColumn(string $column, mixed $data): static
 	{
 		return $this->setDataColumn($column, $data);
 	}
@@ -415,7 +417,7 @@ class Insert
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function addLiteralColumn($column, $value)
+	public function addLiteralColumn(string $column, string $value): static
 	{
 		return $this->setDataColumn($column, $value, true);
 	}
@@ -423,9 +425,9 @@ class Insert
 	//----------------------------------------------GETTERS AND SETTERS----------------------------------------------
 	
 	/**
-	 * @return Connection $db
+	 * @return IConnection
 	 */
-	public function getConnection()
+	public function getConnection(): IConnection
 	{
 		return $this->connection;
 	}
@@ -433,7 +435,7 @@ class Insert
 	/**
 	 * @return DataSet | Select $data
 	 */
-	public function getData()
+	public function getData(): DataSet|Select
 	{
 		return $this->data;
 	}
@@ -441,7 +443,7 @@ class Insert
 	/**
 	 * @return string $priority
 	 */
-	public function getPriority()
+	public function getPriority(): string
 	{
 		return $this->priority;
 	}
@@ -449,7 +451,7 @@ class Insert
 	/**
 	 * @return bool $ignore
 	 */
-	public function getIgnore()
+	public function getIgnore(): bool
 	{
 		return $this->ignore;
 	}
@@ -457,7 +459,7 @@ class Insert
 	/**
 	 * @return Query | Union | string $table
 	 */
-	public function getTable()
+	public function getTable(): Query|Union|string
 	{
 		return $this->table;
 	}
@@ -465,7 +467,7 @@ class Insert
 	/**
 	 * @return bool $updateOnDuplicate
 	 */
-	public function getUpdateOnDuplicate()
+	public function getUpdateOnDuplicate(): bool
 	{
 		return $this->updateOnDuplicate;
 	}
@@ -473,7 +475,7 @@ class Insert
 	/**
 	 * @return array $updateColumns
 	 */
-	public function getUpdateColumns()
+	public function getUpdateColumns(): array
 	{
 		return $this->updateColumns;
 	}
@@ -482,7 +484,7 @@ class Insert
 	 * Return the column array
 	 * @return array
 	 */
-	public function getColumns()
+	public function getColumns(): array
 	{
 		return $this->columns;
 	}
@@ -492,7 +494,7 @@ class Insert
 	 * @param array $columns
 	 * @return Insert
 	 */
-	public function setColumns(array $columns)
+	public function setColumns(array $columns): static
 	{
 		$this->columns = $columns;
 		return $this;
@@ -502,7 +504,7 @@ class Insert
 	 * Get the schema string.
 	 * @return string
 	 */
-	public function getSchema()
+	public function getSchema(): string
 	{
 		return $this->schema;
 	}
@@ -512,9 +514,9 @@ class Insert
 	 * @param string $schema
 	 * @return $this
 	 */
-	public function setSchema($schema)
+	public function setSchema(string $schema): static
 	{
-		$this->schema = (string)$schema;
+		$this->schema = $schema;
 
 		return $this;
 	}
@@ -541,7 +543,7 @@ class Insert
 	 * @param IConnection $connection
 	 * @return $this
 	 */
-	public function setConnection(IConnection $connection)
+	public function setConnection(IConnection $connection): static
 	{
 		$this->connection = $connection;
 		return $this;
@@ -549,11 +551,11 @@ class Insert
 	
 	/**
 	 * Sets the $data
-	 * @param Select | DataSet | array $data
-	 * @throws QueryException
+	 * @param array | DataSet | Select $data
 	 * @return $this
+	 *@throws QueryException
 	 */
-	public function setData($data)
+	public function setData(DataSet|array|Select $data): static
 	{
 		if($data instanceof Select || $data instanceof DataSet)
 		{

@@ -14,5 +14,10 @@ defined('SITE_ROOT')
 
 require_once LIBRARY_ROOT . 'Staple' . DIRECTORY_SEPARATOR . 'Main.php';
 
+//Load Environment Variables
+$path = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+$dotenv = Dotenv\Dotenv::createImmutable($path);
+$dotenv->safeLoad();
+
 $main = Main::get();
 $main->run();

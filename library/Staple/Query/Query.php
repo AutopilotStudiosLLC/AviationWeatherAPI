@@ -831,15 +831,15 @@ abstract class Query implements IQuery
 	/**
 	 * Construct and return an Insert query object.
 	 *
-	 * @param string $table
-	 * @param array $data
+	 * @param string|null $table
+	 * @param array|null $data
 	 * @param IConnection
-	 * @param string $priority
+	 * @param string|null $priority
 	 * @param bool $parameterized
 	 * @return Insert
 	 * @throws QueryException
 	 */
-	public static function insert($table = NULL, $data = NULL, IConnection $db = NULL, $priority = NULL, bool $parameterized = null)
+	public static function insert(string $table = NULL, array $data = NULL, IConnection $db = NULL, string $priority = NULL, bool $parameterized = null): Insert
 	{
 		return new Insert($table, $data, $db, $priority, $parameterized);
 	}

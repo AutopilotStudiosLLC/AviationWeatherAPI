@@ -32,27 +32,27 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * Array of data contained in the set
 	 * @var array
 	 */
-	protected $data = array();
+	protected array $data = array();
 	/**
 	 * Literal data in the set
 	 * @var array
 	 */
-	protected $literal = array();
+	protected array $literal = array();
 	/**
 	 * The database connection
 	 * @var IConnection
 	 */
-	protected $connection;
+	protected IConnection $connection;
 
 	/**
 	 * Parameterized Flag
 	 * @var bool
 	 */
-	protected $parameterized = true;
+	protected bool $parameterized = true;
 
 	/**
-	 * @param array $data
-	 * @param IConnection $connection
+	 * @param array|null $data
+	 * @param IConnection|null $connection
 	 * @param bool $parameterized
 	 */
 	public function __construct(array $data = NULL, IConnection $connection = NULL, bool $parameterized = true)
@@ -73,7 +73,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @return IConnection
 	 * @throws ConfigurationException
 	 */
-	public function getConnection()
+	public function getConnection(): IConnection
 	{
 		if(isset($this->connection))
 			return $this->connection;
@@ -86,7 +86,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @param IConnection $connection
 	 * @return $this
 	 */
-	public function setConnection(IConnection $connection)
+	public function setConnection(IConnection $connection): static
 	{
 		$this->connection = $connection;
 		return $this;
@@ -211,7 +211,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @param mixed $value
 	 * @return $this
 	 */
-	public function addDataPair($key,$value)
+	public function addDataPair($key,$value): static
 	{
 		$this->data[$key] = $value;
 		return $this;
@@ -225,7 +225,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @param array $data
 	 * @return $this
 	 */
-	public function addData(array $data)
+	public function addData(array $data): static
 	{
 		foreach ($data as $key=>$value)
 		{
@@ -241,7 +241,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @param array $data
 	 * @return $this
 	 */
-	public function setData(array $data)
+	public function setData(array $data): static
 	{
 		foreach ($data as $key=>$value)
 		{
@@ -254,7 +254,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	/**
 	 * @return array
 	 */
-	public function getData()
+	public function getData(): array
 	{
 		return $this->data;
 	}
@@ -262,7 +262,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	/**
 	 * @return array
 	 */
-	public function getColumns()
+	public function getColumns(): array
 	{
 		return array_keys($this->data);
 	}
@@ -271,7 +271,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @param $column
 	 * @return mixed|null
 	 */
-	public function getLiteralFor($column)
+	public function getLiteralFor($column): mixed
 	{
 		if(array_key_exists($column, $this->literal))
 		{
@@ -288,7 +288,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @param $column
 	 * @return bool
 	 */
-	public function isLiteral($column)
+	public function isLiteral($column): bool
 	{
 		if(array_key_exists($column, $this->literal))
 			if($this->literal[$column] === true)
@@ -301,7 +301,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @param $data
 	 * @return $this
 	 */
-	public function addLiteralColumn($column, $data)
+	public function addLiteralColumn($column, $data): static
 	{
 		$this->data[$column] = $data;
 		$this->literal[$column] = true;
@@ -312,7 +312,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @param array $data
 	 * @return $this
 	 */
-	public function addLiteralData(array $data)
+	public function addLiteralData(array $data): static
 	{
 		foreach ($data as $key=>$value)
 		{
@@ -328,7 +328,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @throws ConfigurationException
 	 * @throws QueryException
 	 */
-	public function getInsertString()
+	public function getInsertString(): string
 	{
 		$stmt = '('.implode(', ', $this->getColumns()).') ';
 		$stmt .= "\nVALUES (";
@@ -363,7 +363,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @throws ConfigurationException
 	 * @throws QueryException
 	 */
-	public function getInsertMultipleString()
+	public function getInsertMultipleString(): string
 	{
 		$stmt = '(';
 		$colCount = 0;
@@ -397,7 +397,7 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @throws ConfigurationException
 	 * @throws QueryException
 	 */
-	public function getUpdateString()
+	public function getUpdateString(): string
 	{
 		$stmt = '';
 		$colCount = 0;
@@ -429,11 +429,11 @@ class DataSet implements ArrayAccess, Iterator, Countable
 	 * @param $paramName
 	 * @return bool|string
 	 */
-	private function makeParameterizedName($paramName)
+	private function makeParameterizedName($paramName): bool|string
 	{
 		$paramName = Query::sanitizeParamName($paramName);
 
-		if(substr($paramName,0,1) !== ':')
+		if(!str_starts_with($paramName, ':'))
 			$paramName = ':' . $paramName;
 
 		return $paramName;

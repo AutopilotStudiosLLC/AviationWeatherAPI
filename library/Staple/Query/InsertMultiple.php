@@ -22,53 +22,31 @@
  */
 namespace Staple\Query;
 
+use ArrayAccess;
 use Exception;
 use Staple\Error;
+use Staple\Exception\ConfigurationException;
 use Staple\Exception\QueryException;
 
 class InsertMultiple extends Insert
 {
 	/**
 	 * The data to insert. May be a Select Statement Object or an array of DataSets
-	 * @var array[Staple_Query_DataSet]
+	 * @var Select|DataSet|array
 	 */
-	protected $data = array();
+	protected Select|array|DataSet $data = [];
 	
 	/**
 	 * Query to insert multiple rows
-	 * @param string $table
+	 * @param string|null $table
 	 * @param array $columns
 	 * @param Connection $db
-	 * @param string $priority
+	 * @param string|null $priority
 	 * @throws QueryException
 	 */
-	public function __construct($table = NULL, array $columns = NULL, Connection $db = NULL, $priority = NULL)
+	public function __construct(string $table = NULL, array $columns = NULL, Connection $db = NULL, string $priority = NULL)
 	{
-		//Process Database connection
-		if($db instanceof Connection)
-		{
-			$this->setConnection($db);
-		}
-		else
-		{
-			try {
-				$this->setConnection(Connection::get());
-			}
-			catch (Exception $e)
-			{
-				throw new QueryException('Unable to find a database connection.', Error::DB_ERROR, $e);
-			}
-		}
-		if(!($this->connection instanceof Connection))
-		{
-			throw new QueryException('Unable to create database object', Error::DB_ERROR);
-		}
-		
-		//Set Table
-		if(isset($table))
-		{
-			$this->setTable($table);
-		}
+		parent::__construct($table, null, $db, $priority);
 		
 		//Set Data
 		if(isset($columns))
@@ -76,14 +54,16 @@ class InsertMultiple extends Insert
 			$this->setColumns($columns);
 		}
 	}
-	
+
 	/**
 	 * (non-PHPdoc)
-	 * @see Staple_Query_Insert::build()
 	 * @param bool $parameterized
 	 * @return string
+	 * @throws QueryException
+	 * @throws ConfigurationException
+	 * @see Staple_Query_Insert::build()
 	 */
-	public function build(bool $parameterized = null)
+	public function build(bool $parameterized = null): string
 	{
 		//Statement start
 		$stmt = "INSERT ";
@@ -158,7 +138,7 @@ class InsertMultiple extends Insert
 	 * @throws QueryException
 	 * @return $this
 	 */
-	public function addRow(DataSet $row)
+	public function addRow(DataSet $row): static
 	{
 		if(count($row->getColumns()) != count($this->columns))
 		{
@@ -176,7 +156,7 @@ class InsertMultiple extends Insert
 	/**
 	 * @return array $columns
 	 */
-	public function getColumns()
+	public function getColumns(): array
 	{
 		return $this->columns;
 	}
@@ -184,7 +164,7 @@ class InsertMultiple extends Insert
 	 * @param array[string] $columns
 	 * @return $this
 	 */
-	public function setColumns(array $columns)
+	public function setColumns(array $columns): static
 	{
 		$this->columns = $columns;
 		return $this;
@@ -196,7 +176,7 @@ class InsertMultiple extends Insert
 	 * @throws QueryException
 	 * @return $this
 	 */
-	public function setData($data)
+	public function setData(DataSet|array|Select $data): static
 	{
 		//Check all the array values
 		foreach ($data as $row)

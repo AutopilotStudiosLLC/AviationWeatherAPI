@@ -59,10 +59,10 @@ return [
 	'db' => [
 		//'dsn' 		=> '',   //Use this option to create a custom DSN for your database connection
 		'driver' 		=> 'mysql',    //specify the database connection type
-		'host' 			=> 'localhost',
-		'username' 		=> '',
-		'password' 		=> '',
-		'db' 			=> 'staple',
+		'host' 			=> $_ENV['MYSQL_HOST'],
+		'username' 		=> $_ENV['MYSQL_USER'],
+		'password' 		=> $_ENV['MYSQL_PASS'],
+		'db' 			=> $_ENV['MYSQL_DB'],
 		//'schema'		=> '',		//For SQL Server you can specify a default schema here.
 		//options 		=> [],     //Specify any additional options here
 	],
@@ -100,7 +100,7 @@ return [
 	],
 
 	'errors' => [
-		'devmode' 		=> 0,
+		'devmode' 		=> 1,
 		'enable_timer' 	=> 0,
 	],
 

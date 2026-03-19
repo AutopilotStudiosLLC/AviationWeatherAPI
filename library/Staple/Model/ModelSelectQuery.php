@@ -373,7 +373,7 @@ class ModelSelectQuery extends ModelQuery implements ISelectQuery
 		return $this;
 	}
 
-	public function leftJoin($table, $condition, $alias = NULL, $schema = null): static
+	public function leftJoin(string $table, $condition, $alias = NULL, $schema = null): static
 	{
 		$this->queryObject->leftJoin($table, $condition, $alias, $schema);
 		return $this;

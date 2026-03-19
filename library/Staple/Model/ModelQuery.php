@@ -24,6 +24,7 @@
 namespace Staple\Model;
 
 use PDO;
+use Staple\Exception\ConfigurationException;
 use Staple\Exception\ModelNotFoundException;
 use Staple\Exception\QueryException;
 use Staple\Model;
@@ -116,6 +117,7 @@ class ModelQuery implements IQuery
 	 * Alias of the model query first() method
 	 * @return Model
 	 * @throws ModelNotFoundException
+	 * @throws ConfigurationException
 	 */
 	public function first() : Model
 	{
@@ -142,6 +144,7 @@ class ModelQuery implements IQuery
 
 	/**
 	 * @return ModelQueryResult
+	 * @throws ConfigurationException
 	 */
 	public function get() : ModelQueryResult
 	{
@@ -150,7 +153,7 @@ class ModelQuery implements IQuery
 		//Set the table
 		$this->queryObject->setTable($this->getModel()->_getTable());
 
-		/** @var IStatement $result */
+		/** @var IStatement|bool $result */
 		$result = $this->getQueryObject()->execute();
 		$query = $this->getQueryObject()->getConnection()->getLastQuery();
 		if($result !== false)
