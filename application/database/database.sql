@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS tafs (
     valid_time_to TIMESTAMP NOT NULL,
     most_recent BOOLEAN NOT NULL,
     remarks VARCHAR(255) NOT NULL,
-    lat FLOAT NOT NULL,
-    lon FLOAT NOT NULL,
+    lat DECIMAL(10,7) NOT NULL,
+    lon DECIMAL(10,7) NOT NULL,
     elevation INT NOT NULL,
     station_name VARCHAR(255) NULL,
     raw_text TEXT NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS taf_forecasts (
     time_to TIMESTAMP NOT NULL,
     forecast_change VARCHAR(255) NULL,
     probability VARCHAR(255) NULL,
-    wind_direction INT NULL,
+    wind_direction VARCHAR(20) NULL,
     wind_speed INT NULL,
     wind_gust INT NULL,
     wind_shear_height VARCHAR(255) NULL,
@@ -58,4 +58,12 @@ CREATE TABLE IF NOT EXISTS taf_forecast_clouds (
     retrieved_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (taf_forecast_id) REFERENCES taf_forecasts(id) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS error_logs;
+CREATE TABLE IF NOT EXISTS error_logs (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    error_message TEXT NOT NULL,
+    error_trace TEXT NOT NULL,
+    error_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

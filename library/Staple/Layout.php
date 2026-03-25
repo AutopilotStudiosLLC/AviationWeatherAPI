@@ -533,11 +533,11 @@ class Layout
 
 	/**
 	 * Build the layout into PHP output.
-	 * @param string $buffer
-	 * @param View $view
+	 * @param string|null $buffer
+	 * @param View|null $view
 	 * @throws Exception
 	 */
-	public function build($buffer = NULL, View $view = NULL)
+	public function build(string|null $buffer = NULL, View|null $view = NULL)
 	{
 		if(isset($this->name))
 		{

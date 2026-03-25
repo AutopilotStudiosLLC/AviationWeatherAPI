@@ -9,7 +9,7 @@ class TafForecastStruct
 	public int|null $timeBec;
 	public string|null $fcstChange;
 	public string|null $probability;
-	public int|null $wdir;
+	public int|null|string $wdir;
 	public int|null $wspd;
 	public int|null $wgst;
 	public int|null $wshearHgt;

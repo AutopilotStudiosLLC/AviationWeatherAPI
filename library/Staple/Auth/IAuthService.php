@@ -85,7 +85,7 @@ interface IAuthService
 	 * @return bool
 	 * @throws AuthException
 	 */
-	public function noAuth(Route $attemptedRoute = null, Route $routeTo = null);
+	public function noAuth(Route|null $attemptedRoute = null, Route|null $routeTo = null);
 
 	/**
 	 *

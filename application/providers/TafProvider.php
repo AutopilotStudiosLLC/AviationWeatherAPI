@@ -3,8 +3,11 @@ use Staple\Controller\RestfulController;
 use Staple\Exception\BadRequestException;
 use Staple\Exception\ConfigurationException;
 use Staple\Exception\ModelNotFoundException;
+use Staple\Exception\QueryException;
 use Staple\Exception\RestException;
+use Staple\Exception\SystemException;
 use Staple\Json;
+use Staple\Query\Query;
 use Staple\Request;
 use Staple\Rest\Rest;
 
@@ -23,9 +26,9 @@ class TafProvider extends RestfulController
 		$this->addAccessControlMethods([Request::METHOD_GET, Request::METHOD_OPTIONS]);
 	}
 
-	/**
-	 * @return string|null
-	 */
+    /**
+     * @return Json|string
+     */
 	public function getIndex(): Json|string
 	{
 		$obj = new stdClass();
@@ -55,8 +58,8 @@ class TafProvider extends RestfulController
 	 * Get recent METAR data
 	 * @param string $identifier
 	 * @return Json|string
-	 * @throws BadRequestException
-	 */
+	 * @throws BadRequestException|QueryException
+     */
 	public function getTaf(string $identifier = 'KSEA'): Json|string
 	{
 		if(!ctype_alnum(str_replace(',', '', $identifier))) {
@@ -64,98 +67,98 @@ class TafProvider extends RestfulController
 		}
 		try
 		{
+            $identifiers = explode(',', $identifier);
 			try
 			{
-				$tafs = TafModel::select()
-					->columns(['tafs.*'])
-					->leftJoin(TafForecastModel::table(), 'taf_forecasts.taf_id = tafs.id')
-					->leftJoin('taf_forecast_clouds', 'taf_forecast_clouds.taf_forecast_id = taf_forecasts.id')
-					->whereEqual('tafs.icao_id',  $identifier)
-//					->whereStatement('tafs.icao_id = \''.strtoupper($identifier).'\' AND tafs.retrieved_at > DATE_SUB(NOW(), INTERVAL 30 SECOND)')
-					->orderBy('tafs.retrieved_at DESC')
-					->limit(3)
-					->get()
-					->toArray();
+                $tafs = $this->getTafsFromCache($identifiers);
+                return Json::success($this->formatFromDatabase($tafs));
+            }
+            catch (ModelNotFoundException $e)
+            {
+                // If we don't have a cached response, get it from the API
+                $format = (string)($_GET['format'] ?? 'default');
+                $response = Rest::get(AddsModel::HTTP_SOURCE_ROOT . '/taf', [
+                    'format' => 'json',
+                    'ids' => strtoupper($identifier),
+                    'metar' => 'false',
+                ]);
 
-				/** @var TafModel $taf */
-				foreach ($tafs as $taf) {
-					$forecasts = TafForecastModel::select()
-						->whereEqual('taf_id', $taf->id)
-						->get()->toArray();
-					$taf->forecasts = $forecasts;
-					/** @var TafForecastModel $forecast */
-					foreach ($forecasts as $forecast) {
-						/** @var TafForecastCloudModel $cloud */
-						$clouds = TafForecastCloudModel::select()
-							->whereEqual('taf_forecast_id', $forecast->id)
-							->get()->toArray();
-						$forecast->clouds = $clouds;
-					}
-				}
-				return Json::success($this->formatFromDatabase($tafs));
-			}
-			catch (ModelNotFoundException $e)
-			{
-				// If we don't have a cached response, get it from the API
-				$format = (string)($_GET['format'] ?? 'default');
-				$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT . '/taf', [
-					'format' => 'json',
-					'ids' => strtoupper($identifier),
-					'metar' => 'false',
-				]);
+                // Try to cache the response
+                try {
+                    TafModel::cache($response);
+                } catch (Exception $e) {
+                    ErrorLogModel::logError($e);
+                }
 
-				// Try to cache the response
-				try
-				{
-					TafModel::cache($response);
-				}
-				catch (Exception $e) {} // Ignoreing the caching errors for the moment
-
-				if ($format === 'json')
-				{
-					return Json::success($response);
-				}
-				else
-				{
-					return Json::success($this->originalFormat($response));
-				}
+                if ($format === 'json') {
+                    return Json::success($response);
+                } else {
+                    return Json::success($this->originalFormat($response));
+                }
 			}
 			catch (ConfigurationException $e)
 			{
+                ErrorLogModel::logError($e);
 				throw new BadRequestException($e->getMessage());
-				// Todo log the error
 			}
 		}
 		catch(RestException $e)
 		{
+            ErrorLogModel::logError($e);
 			return Json::error($e->getMessage());
 		}
 	}
 
-	/**
-	 * Get a list of TAFs based on a list of stations.
-	 * @return null|string
-	 */
-	public function getList()
-	{
-		$format = (string)($_GET['format'] ?? 'default');
-		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 2);
-		$stationString = (string)($_GET['stations'] ?? '');
+    /**
+     * Get a list of TAFs based on a list of stations.
+     * @param string|null $stations
+     * @return Json|string
+     * @throws BadRequestException
+     * @throws SystemException
+     */
+	public function getList(string $stations = null): Json|string
+    {
+        $format = (string)($_GET['format'] ?? 'default');
+        $hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 2);
+        $stationString = $stations ?? (string)($_GET['stations'] ?? '');
+        if(!ctype_alnum(str_replace(',', '', $stationString))) {
+            throw new BadRequestException('Invalid station identifier');
+        }
 		try
 		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/taf', [
-				'format' => 'json',
-				'ids' => $stationString,
-				'hours' => (int)$hoursBeforeNow
-			]);
-			if ($format === 'json') {
-				return Json::success($response);
-			}
-			else
-			{
-				return Json::success($this->originalFormat($response));
-			}
-		}
+            $identifiers = explode(',', $stationString);
+            try
+            {
+                $tafs = $this->getTafsFromCache($identifiers);
+                return Json::success($this->formatFromDatabase($tafs));
+            }
+            catch (ModelNotFoundException $e) {
+                $response = Rest::get(AddsModel::HTTP_SOURCE_ROOT . '/taf', [
+                    'format' => 'json',
+                    'ids' => $stationString,
+                    'hours' => $hoursBeforeNow,
+                ]);
+
+                // Try to cache the response
+                try {
+                    TafModel::cache($response);
+                } catch (Exception $e) {
+                    ErrorLogModel::logError($e);
+                }
+
+                if ($format === 'json') {
+                    return Json::success($response);
+                } else {
+                    return Json::success($this->originalFormat($response));
+                }
+            }
+            catch (ConfigurationException|QueryException $e) {
+                ErrorLogModel::logError($e);
+                throw new SystemException('An error occurred while processing your request. Please try again later.');
+            } catch (BadRequestException $e) {
+                throw new BadRequestException($e->getMessage());
+            }
+        }
 		catch(RestException $e)
 		{
 			return Json::error($e->getMessage());
@@ -247,12 +250,13 @@ class TafProvider extends RestfulController
 		}
 	}
 
-	protected function formatFromDatabase(array $tafs): stdClass
+	protected function formatFromDatabase(array $tafs, string $source = 'cached'): stdClass
 	{
 		$json = new stdClass();
 		$json->TAF = [];
 
 		$json->results = count($tafs);
+        $json->source = $source;
 		foreach ($tafs as $taf)
 		{
 			$newTaf = new stdClass();
@@ -302,12 +306,13 @@ class TafProvider extends RestfulController
 		return $json;
 	}
 
-	protected function originalFormat(mixed $response): stdClass
+	protected function originalFormat(mixed $response, $source = 'noaa'): stdClass
 	{
 		$json = new stdClass();
 		$json->TAF = [];
 
 		$json->results = count($response);
+        $json->source = $source;
 		foreach ($response as $taf)
 		{
 			$newTaf = new stdClass();
@@ -352,4 +357,64 @@ class TafProvider extends RestfulController
 		}
 		return $json;
 	}
+
+    /**
+     * Get TAF data for a list of stations from the database
+     * @param array $identifiers
+     * @return TafModel[]
+     * @throws BadRequestException
+     * @throws ConfigurationException
+     * @throws ModelNotFoundException
+     * @throws QueryException
+     */
+    protected function getTafsFromCache(array $identifiers): array
+    {
+        $identString = '';
+        foreach ($identifiers as $id) {
+            if(!ctype_alnum($id)) {
+                throw new BadRequestException('Invalid station identifier');
+            }
+            $identString .= "'".strtoupper($id)."',";
+        }
+        $identString = substr($identString, 0, -1);
+        try
+        {
+            $tafs = TafModel::findWhereStatement('tafs.icao_id IN('.$identString.') AND tafs.retrieved_at > DATE_SUB(NOW(), INTERVAL '.AddsModel::TAF_CACHING_INTERVAL.')');
+
+            // If we didn't get at least as many TAFs as we requested, throw an exception
+            if (count($tafs) < count($identifiers)) {
+                throw new ModelNotFoundException('No TAFs found for the specified station(s)');
+            }
+
+            /** @var TafModel $taf */
+            foreach ($tafs as $taf) {
+                $forecasts = TafForecastModel::select()
+                    ->whereEqual('taf_id', $taf->id)
+                    ->get()->toArray();
+                $taf->forecasts = $forecasts;
+                /** @var TafForecastModel $forecast */
+                foreach ($forecasts as $forecast) {
+                    /** @var TafForecastCloudModel $cloud */
+                    $clouds = TafForecastCloudModel::select()
+                        ->whereEqual('taf_forecast_id', $forecast->id)
+                        ->get()->toArray();
+                    $forecast->clouds = $clouds;
+                }
+            }
+
+            return $tafs;
+        }
+        catch (ModelNotFoundException $e)
+        {
+            // Remove any existing cached TAFs for this station
+            try
+            {
+                Query::delete('tafs')->whereStatement('icao_id IN('.$identString.')')->execute();
+            }
+            catch (QueryException $e) {}
+
+            // Re-throw the exception
+            throw new ModelNotFoundException('No TAFs found for the specified station(s)');
+        }
+    }
 }

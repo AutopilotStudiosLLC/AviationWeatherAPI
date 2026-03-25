@@ -291,7 +291,7 @@ class Auth implements IAuthService
 	 * @throws ConfigurationException
 	 * @return bool
 	 */
-	private function createAuthAdapter(AuthAdapter $adapter = null): bool
+	private function createAuthAdapter(AuthAdapter|null $adapter = null)
 	{
 		if($adapter instanceof AuthAdapter)
 		{
@@ -350,7 +350,7 @@ class Auth implements IAuthService
 	 * @throws RoutingException
 	 * @throws PageNotFoundException
 	 */
-	public function noAuth(Route $attemptedRoute = null, Route $routeTo = null)
+	public function noAuth(Route|null $attemptedRoute = null, Route|null $routeTo = null)
 	{
 		//Break a potential infinite loop
 		if($this->getLastAttemptedRoute() instanceof Route)
@@ -384,7 +384,7 @@ class Auth implements IAuthService
 	 * @throws ConfigurationException
 	 * @throws SystemException
 	 */
-	public function clearAuth(AuthAdapter $adapter = null): bool
+	public function clearAuth(AuthAdapter|null $adapter = null): bool
 	{
 		if (isset($this->adapter))
 		{
@@ -402,7 +402,7 @@ class Auth implements IAuthService
 	 * @throws ConfigurationException
 	 * @throws SystemException
 	 */
-	public function resetAuth(AuthAdapter $adapter = null): bool
+	public function resetAuth(AuthAdapter|null $adapter = null): bool
 	{
 		$this->createAuthAdapter($adapter);
 		$this->authed = false;

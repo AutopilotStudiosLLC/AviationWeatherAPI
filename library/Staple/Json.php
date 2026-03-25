@@ -220,7 +220,7 @@ class Json implements \JsonSerializable
 	 * @param int $code
 	 * @return string
 	 */
-	public static function JSend(string $status = self::SUCCESS, mixed $data = NULL, string $message = NULL, int $code = self::DEFAULT_SUCCESS_CODE): string
+	public static function JSend(string $status = self::SUCCESS, mixed $data = NULL, string|null $message = NULL, int $code = self::DEFAULT_SUCCESS_CODE): string
 	{
 		$json = new static();
 		$json->setResponseCode($code);
@@ -266,7 +266,7 @@ class Json implements \JsonSerializable
 	 * @param mixed|null $details
 	 * @return string
 	 */
-	public static function error(string $message = null, int $code = self::DEFAULT_ERROR_CODE, mixed $details = null): string
+	public static function error(string|null $message = null, int $code = self::DEFAULT_ERROR_CODE, mixed $details = null): string
 	{
 		$json = new static();
 		$json->setResponseCode($code, true);
@@ -283,7 +283,7 @@ class Json implements \JsonSerializable
 	 * @param mixed|null $details
 	 * @return string
 	 */
-	public static function authError(string $message = null, int $code = self::DEFAULT_AUTH_ERROR_CODE, mixed $details = null): string
+	public static function authError(string|null $message = null, int $code = self::DEFAULT_AUTH_ERROR_CODE, mixed $details = null): string
 	{
 		return self::error($message, $code, $details);
 	}

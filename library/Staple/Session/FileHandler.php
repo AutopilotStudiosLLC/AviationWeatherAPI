@@ -43,7 +43,7 @@ class FileHandler implements Handler
 	 * @param string|null $location
 	 * @throws ConfigurationException
 	 */
-	public function __construct(string $location = NULL)
+	public function __construct(string|null $location = NULL)
 	{
 		if(isset($location))
 			$this->setFileLocation($location);

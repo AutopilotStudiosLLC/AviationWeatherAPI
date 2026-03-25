@@ -72,7 +72,7 @@ class Session
 	 * @throws ConfigurationException
 	 * @throws SessionException
 	 */
-	public function __construct(Handler $handler = NULL, string $name = NULL)
+	public function __construct(Handler|null $handler = NULL, string|null $name = NULL)
 	{
 		//Set up the session handler
 		if(isset($handler))
@@ -297,7 +297,7 @@ class Session
 	 * @param Auth $auth
 	 * @return Auth
 	 */
-	public static function auth(Auth $auth = NULL)
+	public static function auth(Auth|null $auth = NULL)
 	{
 		$data = self::getInternalData();
 		if($auth instanceof Auth)

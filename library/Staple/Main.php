@@ -323,7 +323,7 @@ class Main
 	 * @throws AuthException
 	 * @throws Exception
 	 */
-	public function run(string|Route $route = NULL): bool
+	public function run(string|Route|null $route = NULL): bool
 	{
 		//First determine which routing information to use
 		if(!is_null($route))								//Use the supplied Route

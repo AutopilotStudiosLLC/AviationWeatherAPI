@@ -3,7 +3,7 @@
     "ext-curl": "*",
     "twig/twig":"v3.21.1",
     "predis/predis":"1.1.*@dev",
-    "auth0/auth0-php": "^5.0",
+    "auth0/auth0-php": "^8.18.0",
     "php-curl-class/php-curl-class": "^9.19.2",
     "phpunit/phpunit": "^11.5.36",
     "vlucas/phpdotenv": "^v5.6.3",

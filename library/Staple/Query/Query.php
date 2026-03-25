@@ -354,8 +354,8 @@ abstract class Query implements IQuery
 	 * @param IStatement $statement
 	 * @throws QueryException
 	 */
-	private function bindParametersToStatement(&$statement)
-	{
+	private function bindParametersToStatement(IStatement &$statement): void
+    {
 		foreach($this->getParams() as $name=>$value)
 		{
 			$varType = gettype($value);

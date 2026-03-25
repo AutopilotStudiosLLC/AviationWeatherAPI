@@ -716,12 +716,13 @@ abstract class Model implements JsonSerializable, ArrayAccess
 
 	//----------------------------------------QUERY FUNCTIONS----------------------------------------
 
-	/**
-	 * Perform a query on a model. If no query is specified then a select query is created.
-	 * @param Query $baseQuery
-	 * @return ModelQuery
-	 */
-	public static function query($baseQuery = NULL) : ModelQuery
+    /**
+     * Perform a query on a model. If no query is specified, then a select query is created.
+     * @param Query|null $baseQuery
+     * @return ModelQuery
+     * @throws QueryException
+     */
+	public static function query(Query|null $baseQuery = NULL) : ModelQuery
 	{
 		if(isset($baseQuery))
 			$query = ModelQuery::create(new static())
@@ -731,13 +732,13 @@ abstract class Model implements JsonSerializable, ArrayAccess
 		return $query;
 	}
 
-	/**
-	 * Perform a SELECT query on the models.
-	 * @return ModelSelectQuery
-	 */
+    /**
+     * Perform a SELECT query on the models.
+     * @return ModelSelectQuery
+     * @throws QueryException
+     */
 	public static function select() : ModelSelectQuery
 	{
-		$query = new ModelSelectQuery(new static());
-		return $query;
+        return new ModelSelectQuery(new static());
 	}
 }

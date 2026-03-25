@@ -211,7 +211,7 @@ class Autoload
 	 * @return boolean
 	 *@throws Exception
 	 */
-	protected function loadAliasClass(string $class_name, string $alias = NULL): bool
+	protected function loadAliasClass(string $class_name, string|null $alias = NULL): bool
     {
 		//Correct for a leading \ character
 		if(str_starts_with($class_name, '\\')) $class_name = substr($class_name, 1);
