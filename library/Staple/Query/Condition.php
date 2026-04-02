@@ -368,6 +368,22 @@ class Condition
 	}
 
 	/**
+	 * @return string|null
+	 */
+	public function getStartParamName(): ?string
+	{
+		return $this->paramArray['start'] ?? null;
+	}
+
+	/**
+	 * @return string|null
+	 */
+	public function getEndParamName(): ?string
+	{
+		return $this->paramArray['end'] ?? null;
+	}
+
+	/**
 	 * @param string $paramName
 	 * @return Condition
 	 */
@@ -686,9 +702,17 @@ class Condition
 		$obj = new static();
 		$obj->setColumn($column)
 			->setOperator(self::BETWEEN)
-			->setValue(Query::convertTypes($start)." AND ".Query::convertTypes($end))
-			->setColumnJoin(true)
 			->setParameterized($parameterized);
+
+		if($parameterized)
+		{
+			$obj->setValue(['start' => $start, 'end' => $end]);
+		}
+		else
+		{
+			$obj->setValue(Query::convertTypes($start)." AND ".Query::convertTypes($end))
+				->setColumnJoin(true);
+		}
 
 		//Start Parameter Name
 		if(is_null($startParamName))

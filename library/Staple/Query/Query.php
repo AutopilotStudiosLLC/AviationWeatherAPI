@@ -495,11 +495,38 @@ abstract class Query implements IQuery
 		$this->where[] = $where;
 
 		//Check for column name conflicts
-		if($where->getColumnJoin() === false && $where->isParameterized() === true && !is_null($where->getParamName()))
+		if($where->getColumnJoin() === false && $where->isParameterized() === true)
 		{
-			$newParamName = $this->generateIncrementalParamName($where->getParamName());
-			$this->setParam($newParamName, $where->getValue());
-			$where->setParamName($newParamName);
+			if (strtoupper($where->getOperator()) === Condition::IN && is_array($where->getValue()))
+			{
+				$count = 0;
+				foreach($where->getValue() as $aValue)
+				{
+					$count++;
+					$newParamName = $this->generateIncrementalParamName($where->getParamName().'_in_'.$count);
+					$this->setParam($newParamName, $aValue);
+				}
+			}
+			elseif (strtoupper($where->getOperator()) === Condition::BETWEEN)
+			{
+				$val = $where->getValue();
+				if(is_array($val) && isset($val['start']) && isset($val['end']))
+				{
+					$startParam = $this->generateIncrementalParamName($where->getStartParamName());
+					$this->setParam($startParam, $val['start']);
+					$where->setStartParamName($startParam);
+
+					$endParam = $this->generateIncrementalParamName($where->getEndParamName());
+					$this->setParam($endParam, $val['end']);
+					$where->setEndParamName($endParam);
+				}
+			}
+			elseif (!is_null($where->getParamName()))
+			{
+				$newParamName = $this->generateIncrementalParamName($where->getParamName());
+				$this->setParam($newParamName, $where->getValue());
+				$where->setParamName($newParamName);
+			}
 		}
 		return $this;
 	}

@@ -1,4 +1,5 @@
 <?php
+
 use Staple\Controller\RestfulController;
 use Staple\Exception\BadRequestException;
 use Staple\Exception\ConfigurationException;
@@ -62,39 +63,54 @@ class TafProvider extends RestfulController
      */
 	public function getTaf(string $identifier = 'KSEA'): Json|string
 	{
-		if(!ctype_alnum(str_replace(',', '', $identifier))) {
+		if(!ctype_alnum(str_replace(',', '', $identifier)))
+        {
 			throw new BadRequestException('Invalid station identifier');
 		}
 		try
 		{
-            $identifiers = explode(',', $identifier);
+            $identifiers = explode(',', strtoupper($identifier));
+            $foundIdentifiers = [];
 			try
 			{
                 $tafs = $this->getTafsFromCache($identifiers);
-                return Json::success($this->formatFromDatabase($tafs));
+                foreach($identifiers as $ident)
+                {
+                    if(array_find($tafs, function ($taf) use ($ident) {
+                            return strtoupper($taf->icao_id) === strtoupper($ident);
+                        }) !== null)
+                    {
+                        $foundIdentifiers[] = strtoupper($ident);
+                    }
+                }
+
+                $cachedResults = $this->formatFromDatabase($tafs);
+                if (count($foundIdentifiers) !== count($identifiers))
+                {
+                    $fetchIdents = implode(',', array_diff($identifiers, $foundIdentifiers));
+                    // If we don't have a cached response, get it from the API
+                    $response = Rest::get(AddsModel::HTTP_SOURCE_ROOT . '/taf', [
+                        'format' => 'json',
+                        'ids' => $fetchIdents,
+                        'metar' => 'false',
+                    ]);
+
+                    // Try to cache the response
+                    try {
+                        TafModel::cache($response);
+                    } catch (Exception $e) {
+                        ErrorLogModel::logError($e);
+                    }
+                    return Json::success($this->mergeCachedAndFetchedResults($tafs, $this->originalFormat($response)));
+                }
+                else
+                {
+                    return Json::success($cachedResults);
+                }
             }
             catch (ModelNotFoundException $e)
             {
-                // If we don't have a cached response, get it from the API
-                $format = (string)($_GET['format'] ?? 'default');
-                $response = Rest::get(AddsModel::HTTP_SOURCE_ROOT . '/taf', [
-                    'format' => 'json',
-                    'ids' => strtoupper($identifier),
-                    'metar' => 'false',
-                ]);
-
-                // Try to cache the response
-                try {
-                    TafModel::cache($response);
-                } catch (Exception $e) {
-                    ErrorLogModel::logError($e);
-                }
-
-                if ($format === 'json') {
-                    return Json::success($response);
-                } else {
-                    return Json::success($this->originalFormat($response));
-                }
+                throw new BadRequestException($e->getMessage());
 			}
 			catch (ConfigurationException $e)
 			{
@@ -256,63 +272,19 @@ class TafProvider extends RestfulController
 		$json->TAF = [];
 
 		$json->results = count($tafs);
-        $json->source = $source;
 		foreach ($tafs as $taf)
 		{
-			$newTaf = new stdClass();
-			$newTaf->raw_text = $taf->raw_text;
-			$newTaf->station_id = $taf->icao_id;
-			if (isset($taf->issue_time))
-				$newTaf->issue_time = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->issue_time,)->format(AddsModel::DATETIME_FORMAT);
-			if (isset($taf->bulletin_time))
-				$newTaf->bulletin_time = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->bulletin_time,)->format(AddsModel::DATETIME_FORMAT);
-			if (isset($taf->valid_time_from))
-				$newTaf->valid_time_from = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->valid_time_from)->format(AddsModel::DATETIME_FORMAT);
-			if (isset($taf->valid_time_to))
-				$newTaf->valid_time_to = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->valid_time_to)->format(AddsModel::DATETIME_FORMAT);
-			$newTaf->latitude = $taf->lat;
-			$newTaf->longitude = $taf->lon;
-			$newTaf->elevation_m = $taf->elevation;
-			$newTaf->forecast = [];
-			foreach ($taf->forecasts as $forecast)
-			{
-				$newCast = new stdClass();
-				$newCast->fcst_time_from = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $forecast->time_from)->format(AddsModel::DATETIME_FORMAT);
-				$newCast->fcst_time_to = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $forecast->time_to)->format(AddsModel::DATETIME_FORMAT);
-				$newCast->change_indicator = $forecast->forecast_change;
-				$newCast->wind_dir_degrees = $forecast->wind_direction;
-				$newCast->wind_speed_kt = $forecast->wind_speed;
-				$newCast->visibility_statute_mi = $forecast->visibility;
-				$newCast->sky_condition = [];
-
-				$sky = $forecast->clouds;
-				foreach ($sky as $condition)
-				{
-					$newCond = new stdClass();
-					$newCond->sky_cover = $condition->cloud_cover;
-					$newCond->cloud_base_ft_agl = $condition->cloud_base;
-					if (count($sky) === 1)
-					{
-						$newCast->sky_condition = $newCond;
-					} else
-					{
-						$newCast->sky_condition[] = $newCond;
-					}
-				}
-				$newTaf->forecast[] = $newCast;
-			}
-			$json->TAF[] = $newTaf;
+            $json->TAF[] = TafModel::toResultFormat($taf);
 		}
 		return $json;
 	}
 
-	protected function originalFormat(mixed $response, $source = 'noaa'): stdClass
+	protected function originalFormat(mixed $response): stdClass
 	{
 		$json = new stdClass();
 		$json->TAF = [];
 
 		$json->results = count($response);
-        $json->source = $source;
 		foreach ($response as $taf)
 		{
 			$newTaf = new stdClass();
@@ -353,6 +325,7 @@ class TafProvider extends RestfulController
 				}
 				$newTaf->forecast[] = $newCast;
 			}
+            $newTaf->source = 'noaa';
 			$json->TAF[] = $newTaf;
 		}
 		return $json;
@@ -379,10 +352,15 @@ class TafProvider extends RestfulController
         $identString = substr($identString, 0, -1);
         try
         {
-            $tafs = TafModel::findWhereStatement('tafs.icao_id IN('.$identString.') AND tafs.retrieved_at > DATE_SUB(NOW(), INTERVAL '.AddsModel::TAF_CACHING_INTERVAL.')');
+//            $tafs = TafModel::findWhereStatement('tafs.icao_id IN('.$identString.') AND tafs.retrieved_at > DATE_SUB(NOW(), INTERVAL '.AddsModel::TAF_CACHING_INTERVAL.')');
+            $tafs = TafModel::query()
+                ->whereIn('tafs.icao_id', $identifiers)
+                ->whereStatement('tafs.retrieved_at > DATE_SUB(NOW(), INTERVAL '.AddsModel::TAF_CACHING_INTERVAL.')')
+                ->get()
+                ->toArray();
 
             // If we didn't get at least as many TAFs as we requested, throw an exception
-            if (count($tafs) < count($identifiers)) {
+            if (count($tafs) === 0) {
                 throw new ModelNotFoundException('No TAFs found for the specified station(s)');
             }
 
@@ -413,8 +391,23 @@ class TafProvider extends RestfulController
             }
             catch (QueryException $e) {}
 
-            // Re-throw the exception
-            throw new ModelNotFoundException('No TAFs found for the specified station(s)');
+            // Return empty array
+//            throw new ModelNotFoundException('No TAFs found for the specified station(s)');
+            return [];
         }
+    }
+
+    private function mergeCachedAndFetchedResults(array $cachedResults, stdClass $fetchedResults): stdClass {
+        $json = new stdClass();
+        $json->TAF = [];
+        foreach ($cachedResults as $taf)
+        {
+            $json->TAF[] = TafModel::toResultFormat($taf);
+        }
+        foreach($fetchedResults->TAF as $noaaTaf) {
+            $json->TAF[] = $noaaTaf;
+        }
+        $json->results = count($json->TAF);
+        return $json;
     }
 }
