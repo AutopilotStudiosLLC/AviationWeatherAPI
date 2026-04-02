@@ -1,5 +1,8 @@
 <phpunit bootstrap="bootstrap.php" colors="true" failOnWarning="true">
     <testsuites>
+        <testsuite name="Aviation Weather Suite">
+            <directory>application/</directory>
+        </testsuite>
         <testsuite name="Staple Test Suite">
             <directory>Staple/</directory>
         </testsuite>

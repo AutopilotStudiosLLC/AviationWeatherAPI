@@ -84,14 +84,14 @@ class MockConnection extends Connection implements IConnection
 	 * @param null $fetchModeArgs
 	 * @return Statement|false
 	 */
-	public function query(string $query, $fetchMode = null, ...$fetchModeArgs): Statement|false
+	public function query(string $query, $fetchMode = null, ...$fetchModeArgs): Statement|bool
 	{
 		$this->addQueryToLog($query);
 		$this->notify();
 		return $this->getResults();
 	}
 
-	public function prepare(string|IStatement $query, array $options = []): \PDOStatement|false
+	public function prepare(string|IStatement $query, array $options = []): \PDOStatement|bool
 	{
 		$query = (string)$query;
 		$this->addQueryToLog($query);

@@ -3,6 +3,7 @@
 namespace application\providers;
 
 use AddsModel;
+use Exception;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -29,7 +30,7 @@ class MockRest
     public static $response = null;
     public static $lastUrl = null;
     public static $lastData = null;
-    public static $throwException = null;
+    public static Exception | null $throwException = null;
 
     public static function get($url, array $data = [], array $headers = [])
     {
@@ -149,8 +150,10 @@ class TafProviderTest extends TestCase
         $response = $this->provider->getRecent('KSEA');
         $this->assertInstanceOf(Json::class, $response);
         $data = $response->jsonSerialize();
-        $this->assertCount(1, $data);
-        $this->assertEquals('KSEA', $data[0]->icaoId);
+        $this->assertIsObject($data);
+        $this->assertEquals(1, $data->results);
+        $this->assertCount(1, $data->TAF);
+        $this->assertEquals('KSEA', $data->TAF[0]->station_id);
     }
 
     public function testGetTafInvalidIdentifier()
@@ -169,9 +172,11 @@ class TafProviderTest extends TestCase
         $response = $this->provider->getTaf($station);
         $this->assertInstanceOf(Json::class, $response);
         $data = $response->jsonSerialize();
-        
-        $this->assertCount(1, $data);
-        $this->assertEquals($station, $data[0]->icaoId);
+
+        $this->assertIsObject($data);
+        $this->assertEquals(1, $data->results);
+        $this->assertCount(1, $data->TAF);
+        $this->assertEquals($station, $data->TAF[0]->station_id);
         $this->assertEquals(AddsModel::HTTP_SOURCE_ROOT . '/taf', MockRest::$lastUrl);
     }
 
@@ -184,13 +189,23 @@ class TafProviderTest extends TestCase
         $_GET['format'] = 'json';
 
         $response = $this->provider->getList($stations);
+        $this->assertInstanceOf(Json::class, $response);
         $data = $response->jsonSerialize();
-        $this->assertCount(2, $data);
-        
+        $this->assertIsObject($data);
+        $this->assertObjectHasProperty('TAF', $data);
+        $this->assertObjectHasProperty('results', $data);
+        $this->assertSame((int)$data->results, count($data->TAF));
+        $this->assertNull(MockRest::$lastUrl);
+
         // Test with comma in identifier
         MockRest::$lastUrl = null;
         $response = $this->provider->getList('KSEA,KPDX');
-        $this->assertNotNull($response);
+        $this->assertInstanceOf(Json::class, $response);
+        $data = $response->jsonSerialize();
+        $this->assertIsObject($data);
+        $this->assertObjectHasProperty('TAF', $data);
+        $this->assertSame((int)$data->results, count($data->TAF));
+        $this->assertNull(MockRest::$lastUrl);
     }
 
     public function testGetListInvalid()

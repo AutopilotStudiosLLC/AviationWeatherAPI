@@ -606,7 +606,7 @@ class Connection extends PDO implements IConnection
 	 * @param mixed ...$fetchModeArgs
 	 * @return Statement|false
 	 */
-	public function query(string $query, $fetchMode = PDO::FETCH_CLASS, ...$fetchModeArgs): Statement|false
+	public function query(string $query, $fetchMode = PDO::FETCH_CLASS, ...$fetchModeArgs): Statement|bool
 	{
 		//Log the query
 		$this->addQueryToLog($query);
@@ -633,7 +633,7 @@ class Connection extends PDO implements IConnection
 	 * @param array $options
 	 * @return PDOStatement|false
 	 */
-	public function prepare(string|IStatement $query, array $options = []): PDOStatement|false
+	public function prepare(string|IStatement $query, array $options = []): PDOStatement|bool
 	{
 		$statement = parent::prepare($query, $options);
 		$statement->setDriver($this->getDriver());
