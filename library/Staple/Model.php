@@ -84,7 +84,7 @@ abstract class Model implements JsonSerializable, ArrayAccess
      *
      * @param array|null $options
      */
-	public function __construct(array $options = NULL)
+	public function __construct(?array $options = null)
 	{
 		//Setup the table name if not already set.
 		if(!isset($this->_table))
@@ -425,7 +425,7 @@ abstract class Model implements JsonSerializable, ArrayAccess
 	 * @throws ModelNotFoundException
 	 * @throws QueryException
 	 */
-	public static function find(int $id, IConnection $connection = NULL): static|array
+	public static function find(int $id, ?IConnection $connection = NULL): static|array
 	{
 		//Make a model instance
 		$model = static::make();
@@ -467,7 +467,7 @@ abstract class Model implements JsonSerializable, ArrayAccess
 	 * @return static|array
 	 * @throws QueryException
 	 */
-	public static function findAll(mixed $order = NULL, mixed $limit = NULL, IConnection $connection = NULL): static|array
+	public static function findAll(mixed $order = NULL, mixed $limit = NULL, ?IConnection $connection = NULL): static|array
 	{
 		//Make a model instance
 		$model = static::make();
@@ -512,7 +512,7 @@ abstract class Model implements JsonSerializable, ArrayAccess
 	 * @throws ModelNotFoundException
 	 * @throws QueryException
 	 */
-	public static function findWhereEqual(string $column, mixed $value, $order = NULL, $limit = NULL, IConnection $connection = NULL): static|array
+	public static function findWhereEqual(string $column, mixed $value, $order = NULL, $limit = NULL, ?IConnection $connection = NULL): static|array
 	{
 		//Make a model instance
 		$model = static::make();
@@ -558,7 +558,7 @@ abstract class Model implements JsonSerializable, ArrayAccess
 	 * @throws ModelNotFoundException
 	 * @throws QueryException
 	 */
-	public static function findWhereNull(string $column, $order = NULL, int|Pager $limit = NULL, IConnection $connection = NULL): array
+	public static function findWhereNull(string $column, $order = NULL, int|Pager|null $limit = NULL, ?IConnection $connection = NULL): array
 	{
 		//Make a model instance
 		$model = static::make();
@@ -605,7 +605,7 @@ abstract class Model implements JsonSerializable, ArrayAccess
 	 * @throws ModelNotFoundException
 	 * @throws QueryException
 	 */
-	public static function findWhereIn(string $column, array $values, $order = NULL, int|Pager $limit = NULL, IConnection $connection = NULL): array
+	public static function findWhereIn(string $column, array $values, $order = NULL, int|Pager|null $limit = NULL, ?IConnection $connection = NULL): array
 	{
 		//Make a model instance
 		$model = static::make();
@@ -643,15 +643,15 @@ abstract class Model implements JsonSerializable, ArrayAccess
 
 
 	/**
-	 * Returns all of the models in an array within the given SQL condition.
+	 * Returns all the models in an array within the given SQL condition.
 	 * @param string $statement
-	 * @param mixed $order
-	 * @param int|Pager $limit
+	 * @param mixed|null $order
+	 * @param int|Pager|null $limit
 	 * @param IConnection|NULL $connection
 	 * @return array
-	 * @throws ModelNotFoundException
+	 * @throws ModelNotFoundException|QueryException
 	 */
-	public static function findWhereStatement($statement, $order = NULL, $limit = NULL, IConnection $connection = NULL)
+	public static function findWhereStatement(string $statement, mixed $order = NULL, Pager|int|null $limit = NULL, ?IConnection $connection = NULL): array
 	{
 		//Make a model instance
 		$model = static::make();

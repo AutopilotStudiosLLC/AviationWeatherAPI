@@ -10,6 +10,8 @@ use Staple\Model;
  */
 class TafModel extends Model
 {
+	const TAF_CACHING_INTERVAL = '3 MINUTE';
+
     function __jsonSerialize() {
         return TafModel::toResultFormat($this);
     }
@@ -86,49 +88,20 @@ class TafModel extends Model
 		$this->forecasts = TafForecastModel::importArray($taf->fcsts);
 	}
 
-    public static function toResultFormat(TafModel $taf): stdClass {
+    public static function toResultFormat(TafModel $station): stdClass {
+		echo 'Converting Cache...<br>';
         $json = new stdClass();
-        $json->raw_text = $taf->raw_text;
-        $json->station_id = $taf->icao_id;
-        if (isset($taf->issue_time))
-            $json->issue_time = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->issue_time)->format(AddsModel::DATETIME_FORMAT);
-        if (isset($taf->bulletin_time))
-            $json->bulletin_time = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->bulletin_time)->format(AddsModel::DATETIME_FORMAT);
-        if (isset($taf->valid_time_from))
-            $json->valid_time_from = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->valid_time_from)->format(AddsModel::DATETIME_FORMAT);
-        if (isset($taf->valid_time_to))
-            $json->valid_time_to = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $taf->valid_time_to)->format(AddsModel::DATETIME_FORMAT);
-        $json->latitude = $taf->lat;
-        $json->longitude = $taf->lon;
-        $json->elevation_m = $taf->elevation;
-        $json->forecast = [];
-        foreach ($taf->forecasts as $forecast)
-        {
-            $newCast = new stdClass();
-            $newCast->fcst_time_from = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $forecast->time_from)->format(AddsModel::DATETIME_FORMAT);
-            $newCast->fcst_time_to = DateTime::createFromFormat(DATABASE_DATE_FORMAT, $forecast->time_to)->format(AddsModel::DATETIME_FORMAT);
-            $newCast->change_indicator = $forecast->forecast_change;
-            $newCast->wind_dir_degrees = $forecast->wind_direction;
-            $newCast->wind_speed_kt = $forecast->wind_speed;
-            $newCast->visibility_statute_mi = $forecast->visibility;
-            $newCast->sky_condition = [];
-
-            $sky = $forecast->clouds;
-            foreach ($sky as $condition)
-            {
-                $newCond = new stdClass();
-                $newCond->sky_cover = $condition->cloud_cover;
-                $newCond->cloud_base_ft_agl = $condition->cloud_base;
-                if (count($sky) === 1)
-                {
-                    $newCast->sky_condition = $newCond;
-                } else
-                {
-                    $newCast->sky_condition[] = $newCond;
-                }
-            }
-            $json->forecast[] = $newCast;
-        }
+        $json->station_id = $station->icao_id;
+	  	$json->icao_id = $station->icao_id;
+	  	$json->iata_id = $station->iata_id;
+	  	$json->wmo_id = $station->wmo_id;
+	  	$json->latitude = $station->latitude;
+	  	$json->longitude = $station->longitude;
+	  	$json->elevation_m = $station->elevation;
+	  	$json->site = $station->site_name;
+	  	$json->state = $station->state;
+	  	$json->country = $station->country;
+	  	$json->site_type = explode(',', $station->site_types);
         $json->source = 'cached';
         return $json;
     }

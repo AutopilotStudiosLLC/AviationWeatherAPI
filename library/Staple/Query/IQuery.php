@@ -43,7 +43,7 @@ interface IQuery
 	 * @param string|NULL $alias
 	 * @return IQuery
 	 */
-	public function setTable(Query|array|string $table, string $alias = NULL): IQuery;
+	public function setTable(Query|array|string $table, ?string $alias = NULL): IQuery;
 	/**
 	 * Set the query connection
 	 * @param IConnection $connection
@@ -51,9 +51,9 @@ interface IQuery
 	 */
 	public function setConnection(IConnection $connection): IQuery;
 	//Build the query into a string.
-	public function build(bool $parameterized = null);
+	public function build(?bool $parameterized = null);
 	//Execute the query and returns the result.
-	public function execute(IConnection $connection = NULL): ModelQueryResult|IStatement|false;
+	public function execute(?IConnection $connection = NULL): ModelQueryResult|IStatement|false;
 
 	/**
 	 * Get the parameter list.

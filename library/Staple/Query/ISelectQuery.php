@@ -33,36 +33,36 @@ interface ISelectQuery extends IQuery
 	//Clear out where statements
 	public function clearWhere();
 	//Create and add a where condition
-	public function where($column, $operator, $value, bool $columnJoin = NULL, string $paramName = null, bool $parameterized = true);
+	public function where(string $column, string $operator, mixed $value, ?bool $columnJoin = NULL, ?string $paramName = null, bool $parameterized = true);
 	//Create and add a where condition
-	public function whereCondition($column, $operator, $value, bool $columnJoin = NULL, string $paramName = null, bool $parameterized = true);
+	public function whereCondition(string $column, string $operator, mixed $value, ?bool $columnJoin = NULL, ?string $paramName = null, bool $parameterized = true);
 	//An open ended where statement
-	public function whereStatement($statement);
+	public function whereStatement(string|Select $statement);
 	//SQL WHERE =
-	public function whereEqual($column, $value, bool $columnJoin = null,  string $paramName = null, bool $parameterized = true);
+	public function whereEqual(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true);
 	//SQL WHERE <>
-	public function whereNotEqual($column, $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true);
+	public function whereNotEqual($column, $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true);
 	//SQL LIKE Clause
-	public function whereLike($column, $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true);
+	public function whereLike(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true);
 	//SQL NOT LIKE Clause
-	public function whereNotLike($column, $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true);
+	public function whereNotLike(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true);
 	//SQL IS NULL Clause
 	public function whereNull(string $column);
 	//SQL IN Clause
-	public function whereIn(string $column, mixed $values, string $paramName = null, bool $parameterized = true);
+	public function whereIn(string $column, array|Select $values, ?string $paramName = null, bool $parameterized = true);
 	//SQL BETWEEN Clause
-	public function whereBetween($column, $start, $end, string $startParamName = null, string $endParamName = null, bool $parameterized = true);
+	public function whereBetween(string $column, mixed $start, mixed $end, ?string $startParamName = null, ?string $endParamName = null, bool $parameterized = true);
 
 	//Create and add a where condition
-	public function orWhere($column, $operator, $value, bool $columnJoin = NULL, string $paramName = null, bool $parameterized = true);
+	public function orWhere($column, $operator, $value, ?bool $columnJoin = NULL, ?string $paramName = null, bool $parameterized = true);
 	//Create and add a where condition
-	public function orWhereCondition($column, $operator, $value, bool $columnJoin = NULL, string $paramName = null, bool $parameterized = true);
+	public function orWhereCondition(string $column, string $operator, mixed $value, ?bool $columnJoin = NULL, ?string $paramName = null, bool $parameterized = true);
 	//An open ended where statement
 	//public function orWhereStatement($statement);
 	//SQL WHERE =
-	public function orWhereEqual($column, $value, bool $columnJoin = null,  string $paramName = null, bool $parameterized = true);
+	public function orWhereEqual(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true);
 	//SQL WHERE <>
-	public function orWhereNotEqual($column, $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true);
+	public function orWhereNotEqual(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true);
 	//SQL LIKE Clause
 	//public function orWhereLike($column, $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true);
 	//SQL NOT LIKE Clause
@@ -75,11 +75,11 @@ interface ISelectQuery extends IQuery
 	//public function orWhereBetween($column, $start, $end, string $startParamName = null, string $endParamName = null, bool $parameterized = true);
 
 	//Sets the limit and the offset in one function.
-	public function limit(int|Pager $limit, int $offset = NULL);
+	public function limit(int|Pager $limit, ?int $offset = NULL);
 	//Get the select columns
 	public function getColumns();
 	//Add to the list of columns. Optional parameter to name a column.
-	public function addColumn(string $col, string $name = NULL);
+	public function addColumn(string $col, ?string $name = NULL);
 	//Different from addColumnsArray(), this function replaces all existing columns in the query.
 	public function columns(array $columns);
 	//Add an array of columns to the list of selected columns
@@ -93,19 +93,19 @@ interface ISelectQuery extends IQuery
 
 	public function clearHaving();
 	//Add A HAVING clause to the SELECT statement using the Condition object
-	public function havingCondition(string $column, string $operator, mixed $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true);
+	public function havingCondition(string $column, string $operator, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true);
 	//Add A raw HAVING clause to the SELECT statement
 	public function havingStatement(string|Condition $statement);
 	//Add A HAVING EQUAL clause to the SELECT statement
-	public function havingEqual(string $column, mixed $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true);
+	public function havingEqual(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true);
 	//Add A HAVING LIKE clause to the SELECT statement
-	public function havingLike(string $column, mixed $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true);
+	public function havingLike(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true);
 	//Add A HAVING NULL clause to the SELECT statement
 	public function havingNull(string $column);
 	//Add A HAVING IN clause to the SELECT statement
-	public function havingIn(string $column, array $values, string $paramName = null, bool $parameterized = true);
+	public function havingIn(string $column, array $values, ?string $paramName = null, bool $parameterized = true);
 	//Add A HAVING BETWEEN clause to the SELECT statement
-	public function havingBetween(string $column, mixed $start, mixed $end, string $startParamName = null, string $endParamName = null, bool $parameterized = true);
+	public function havingBetween(string $column, mixed $start, mixed $end, ?string $startParamName = null, ?string $endParamName = null, bool $parameterized = true);
 
 	/*-----------------------------------------------JOIN FUNCTIONS-----------------------------------------------*/
 

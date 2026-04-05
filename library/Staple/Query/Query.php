@@ -79,7 +79,7 @@ abstract class Query implements IQuery
 	 * @param IConnection|null $db
 	 * @throws QueryException
 	 */
-	public function __construct(Query|array|string $table = NULL, IConnection $db = NULL)
+	public function __construct(Query|array|string|null $table = NULL, ?IConnection $db = NULL)
 	{
 		if($db instanceof IConnection)
 		{
@@ -171,7 +171,7 @@ abstract class Query implements IQuery
 	 * @param string|null $alias
 	 * @return $this
 	 */
-	public function setTable(Query|array|string $table, string $alias = NULL): IQuery
+	public function setTable(Query|array|string $table, ?string $alias = NULL): IQuery
 	{
 		if(isset($alias) && is_string($table))
 		{
@@ -190,7 +190,7 @@ abstract class Query implements IQuery
 	 * @param string|null $alias
 	 * @return Query
 	 */
-	public function fromTable(Query|array|string $table, string $alias = NULL): Query
+	public function fromTable(Query|array|string $table, ?string $alias = NULL): Query
 	{
 		return $this->setTable($table,$alias);
 	}
@@ -304,7 +304,7 @@ abstract class Query implements IQuery
 	 * @param bool $parameterized
 	 * @return string
 	 */
-	abstract function build(bool $parameterized = null);
+	abstract function build(?bool $parameterized = null);
 
 	/**
 	 * Executes the query and returns the result.
@@ -312,7 +312,7 @@ abstract class Query implements IQuery
 	 * @return ModelQueryResult|IStatement|false
 	 * @throws QueryException
 	 */
-	public function execute(IConnection $connection = NULL): ModelQueryResult|IStatement|false
+	public function execute(?IConnection $connection = NULL): ModelQueryResult|IStatement|false
 	{
 		if(isset($connection))
 			$this->setConnection($connection);
@@ -359,6 +359,7 @@ abstract class Query implements IQuery
 		foreach($this->getParams() as $name=>$value)
 		{
 			$varType = gettype($value);
+			$type = PDO::PARAM_NULL;
 
 			//Bind other types.
 			switch($varType)
@@ -419,7 +420,7 @@ abstract class Query implements IQuery
 	 * @throws QueryException
 	 * @throws PDOException
 	 */
-	public function prepareAndExecute(IConnection $connection = null)
+	public function prepareAndExecute(?IConnection $connection = null)
 	{
 		if(isset($connection))
 			$this->setConnection($connection);
@@ -539,16 +540,16 @@ abstract class Query implements IQuery
 
 	/**
 	 * Additive conditional WHERE clause
-	 * @param $column
-	 * @param $operator
-	 * @param $value
-	 * @param string $paramName
+	 * @param string $column
+	 * @param string $operator
+	 * @param mixed $value
 	 * @param bool|null $columnJoin
+	 * @param string|null $paramName
 	 * @param bool $parameterized
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function where($column, $operator, $value, bool $columnJoin = NULL, string $paramName = null, bool $parameterized = true)
+	public function where(string $column, string $operator, mixed $value, ?bool $columnJoin = NULL, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addWhere(Condition::get($column, $operator, $value, $columnJoin, $paramName, Condition::SQL_AND, $parameterized));
 		return $this;
@@ -565,7 +566,7 @@ abstract class Query implements IQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function orWhere($column, $operator, $value, bool $columnJoin = NULL, string $paramName = null, bool $parameterized = true)
+	public function orWhere($column, $operator, $value, ?bool $columnJoin = NULL, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addWhere(Condition::get($column, $operator, $value, $columnJoin, $paramName, Condition::SQL_OR, $parameterized));
 		return $this;
@@ -583,7 +584,7 @@ abstract class Query implements IQuery
 	 * @throws QueryException
 	 * @deprecated
 	 */
-	public function whereCondition($column, $operator, $value, bool $columnJoin = NULL, string $paramName = null, bool $parameterized = true)
+	public function whereCondition($column, $operator, $value, ?bool $columnJoin = NULL, ?string $paramName = null, bool $parameterized = true): static
 	{
 		return $this->where($column, $operator, $value, $columnJoin, $paramName, $parameterized);
 	}
@@ -600,7 +601,7 @@ abstract class Query implements IQuery
 	 * @throws QueryException
 	 * @deprecated
 	 */
-	public function orWhereCondition($column, $operator, $value, bool $columnJoin = NULL, string $paramName = null, bool $parameterized = true)
+	public function orWhereCondition($column, $operator, $value, ?bool $columnJoin = NULL, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->orWhere($column, $operator, $value, $columnJoin, $paramName, $parameterized);
 		return $this;
@@ -613,7 +614,7 @@ abstract class Query implements IQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function whereStatement($statement)
+	public function whereStatement(string|Select $statement): static
 	{
 		$this->addWhere(Condition::statement($statement));
 		return $this;
@@ -629,7 +630,7 @@ abstract class Query implements IQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function whereEqual($column, $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true)
+	public function whereEqual(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true): static
 	{
 		if(!isset($parameterized))
 			$parameterized = $this->isParameterized();
@@ -647,7 +648,7 @@ abstract class Query implements IQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function orWhereEqual($column, $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true)
+	public function orWhereEqual(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true): static
 	{
 		if(!isset($parameterized))
 			$parameterized = $this->isParameterized();
@@ -665,7 +666,7 @@ abstract class Query implements IQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function whereNotEqual($column, $value, bool $columnJoin = NULL, string $paramName = null, bool $parameterized = true)
+	public function whereNotEqual($column, $value, ?bool $columnJoin = NULL, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addWhere(Condition::notEqual($column, $value, $columnJoin, $paramName, Condition::SQL_AND, $parameterized));
 		return $this;
@@ -681,7 +682,7 @@ abstract class Query implements IQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function orWhereNotEqual($column, $value, bool $columnJoin = NULL, string $paramName = null, bool $parameterized = true)
+	public function orWhereNotEqual(string $column, mixed $value, ?bool $columnJoin = NULL, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addWhere(Condition::notEqual($column, $value, $columnJoin, $paramName, Condition::SQL_OR, $parameterized));
 		return $this;
@@ -692,12 +693,12 @@ abstract class Query implements IQuery
 	 * @param string $column
 	 * @param mixed $value
 	 * @param bool $columnJoin
-	 * @param string $paramName
+	 * @param string|null $paramName
 	 * @param bool $parameterized
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function whereLike($column, $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true)
+	public function whereLike(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addWhere(Condition::like($column, $value, $columnJoin, $paramName, Condition::SQL_AND, $parameterized));
 		return $this;
@@ -713,7 +714,7 @@ abstract class Query implements IQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function whereNotLike($column, $value, bool $columnJoin = null, string $paramName = null, bool $parameterized = true)
+	public function whereNotLike(string $column, mixed $value, ?bool $columnJoin = null, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addWhere(Condition::notLike($column, $value, $columnJoin, $paramName, Condition::SQL_AND, $parameterized));
 		return $this;
@@ -725,7 +726,7 @@ abstract class Query implements IQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function whereNull($column)
+	public function whereNull(string $column): static
 	{
 		$this->addWhere(Condition::null($column));
 		return $this;
@@ -740,39 +741,39 @@ abstract class Query implements IQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function whereIn($column, $values, string $paramName = null, bool $parameterized = true)
+	public function whereIn(string $column, array|Select $values, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addWhere(Condition::in($column, $values, $paramName, Condition::SQL_AND, $parameterized));
 		return $this;
 	}
-	
+
 	/**
 	 * SQL BETWEEN Clause
 	 * @param string $column
 	 * @param mixed $start
 	 * @param mixed $end
-	 * @param string $startParamName
-	 * @param string $endParamName
+	 * @param string|null $startParamName
+	 * @param string|null $endParamName
 	 * @param bool $parameterized
 	 * @return $this
-	 * @throws Exception
+	 * @throws QueryException
 	 */
-	public function whereBetween($column, $start, $end, string $startParamName = null, string $endParamName = null, bool $parameterized = true)
+	public function whereBetween(string $column, mixed $start, mixed $end, ?string $startParamName = null, ?string $endParamName = null, bool $parameterized = true): static
 	{
 		$this->addWhere(Condition::between($column, $start, $end, $startParamName, $endParamName, Condition::SQL_AND, $parameterized));
 		return $this;
 	}
 	
 	/*-----------------------------------------------UTILITY FUNCTIONS-----------------------------------------------*/
-	
+
 	/**
 	 * Converts a PHP data type into a compatible MySQL string.
 	 * @param mixed $inValue
-	 * @param IConnection $db
-	 * @throws QueryException
+	 * @param IConnection|null $db
 	 * @return string
+	 * @throws QueryException
 	 */
-	public static function convertTypes($inValue, IConnection $db = NULL)
+	public static function convertTypes(mixed $inValue, ?IConnection $db = NULL): int|string
 	{
 		if(!($db instanceof IConnection))
 		{
@@ -841,16 +842,16 @@ abstract class Query implements IQuery
 	/**
 	 * Construct a Select query object and return it.
 	 *
-	 * @param string $table
-	 * @param array $columns
-	 * @param IConnection $db
-	 * @param array | string $order
-	 * @param Pager | int $limit
+	 * @param string|null $table
+	 * @param array|null $columns
+	 * @param IConnection|null $db
+	 * @param array|string|null $order
+	 * @param null $limit
 	 * @param bool $parameterized
 	 * @return Select
 	 * @throws QueryException
 	 */
-	public static function select($table = NULL, array $columns = NULL, IConnection $db = NULL, $order = NULL, $limit = NULL, bool $parameterized = null)
+	public static function select(?string $table = NULL, ?array $columns = NULL, ?IConnection $db = NULL, array|string|null $order = NULL, $limit = NULL, ?bool $parameterized = null): Select
 	{
 		return new Select($table, $columns, $db, $order, $limit, $parameterized);
 	}
@@ -860,13 +861,13 @@ abstract class Query implements IQuery
 	 *
 	 * @param string|null $table
 	 * @param array|null $data
-	 * @param IConnection
+	 * @param IConnection|null $db
 	 * @param string|null $priority
 	 * @param bool $parameterized
 	 * @return Insert
 	 * @throws QueryException
 	 */
-	public static function insert(string $table = NULL, array $data = NULL, IConnection $db = NULL, string $priority = NULL, bool $parameterized = null): Insert
+	public static function insert(?string $table = NULL, ?array $data = NULL, ?IConnection $db = NULL, ?string $priority = NULL, ?bool $parameterized = null): Insert
 	{
 		return new Insert($table, $data, $db, $priority, $parameterized);
 	}
@@ -874,16 +875,16 @@ abstract class Query implements IQuery
 	/**
 	 * Construct and return an Update query object.
 	 *
-	 * @param string $table
+	 * @param string|null $table
 	 * @param array $data
-	 * @param IConnection $db
-	 * @param array | string $order
-	 * @param Pager | int $limit
+	 * @param IConnection|null $db
+	 * @param array | string|null $order
+	 * @param int | Pager|null $limit
 	 * @param bool $parameterized
 	 * @return Update
 	 * @throws QueryException
 	 */
-	public static function update($table = NULL, array $data = NULL, IConnection $db = NULL, $order = NULL, $limit = NULL, bool $parameterized = null)
+	public static function update(?string $table = NULL, ?array $data = NULL, ?IConnection $db = NULL, array|string|null $order = NULL, Pager|int|null $limit = NULL, ?bool $parameterized = null): Update
 	{
 		return new Update($table, $data, $db, $order, $limit, $parameterized);
 	}
@@ -891,13 +892,13 @@ abstract class Query implements IQuery
 	/**
 	 * Construct and return a Delete query object.
 	 *
-	 * @param string $table
-	 * @param IConnection $db
+	 * @param string|null $table
+	 * @param IConnection|null $db
 	 * @param bool $parameterized
 	 * @return Delete
 	 * @throws QueryException
 	 */
-	public static function delete($table = NULL, IConnection $db = NULL, bool $parameterized = null)
+	public static function delete(?string $table = NULL, ?IConnection $db = NULL, ?bool $parameterized = null): Delete
 	{
 		return new Delete($table, $db, $parameterized);
 	}
@@ -906,11 +907,11 @@ abstract class Query implements IQuery
 	 * Construct and return a Union query object
 	 *
 	 * @param array $queries
-	 * @param IConnection $db
+	 * @param IConnection|null $db
 	 * @return Union
 	 * @throws QueryException
 	 */
-	public static function union(array $queries = array(), IConnection $db = NULL)
+	public static function union(array $queries = array(), ?IConnection $db = NULL): Union
 	{
 		return new Union($queries, $db);
 	}
@@ -918,23 +919,23 @@ abstract class Query implements IQuery
 	/**
 	 * Create and return a Query DataSet object
 	 *
-	 * @param array $data
-	 * @param IConnection $connection
+	 * @param array|null $data
+	 * @param IConnection|null $connection
 	 * @return DataSet
 	 */
-	public static function dataSet(array $data = NULL, IConnection $connection = NULL)
+	public static function dataSet(?array $data = NULL, ?IConnection $connection = NULL): DataSet
 	{
 		return new DataSet($data,$connection);
 	}
 
-    /**
-     * Execute a raw SQL statement
-     * @param string | Query $statement
-     * @param IConnection $connection
-     * @return Statement
+	/**
+	 * Execute a raw SQL statement
+	 * @param string | Query $statement
+	 * @param IConnection|null $connection
+	 * @return Statement
 	 * @throws ConfigurationException
-     */
-	public static function raw($statement, IConnection $connection = NULL)
+	 */
+	public static function raw(Query|string $statement, ?IConnection $connection = NULL): Statement
 	{
         if(isset($connection))
             return $connection->query($statement);
@@ -945,14 +946,14 @@ abstract class Query implements IQuery
 	/**
 	 * Create a prepared statement for a stored procedure call.
 	 * @param string $procedureName
-	 * @param array $parameters
-	 * @param IConnection $connection
+	 * @param array|null $parameters
+	 * @param IConnection|null $connection
 	 * @param array $driverOptions
 	 * @return PDOStatement
-	 * @throws QueryException
 	 * @throws ConfigurationException
+	 * @throws QueryException
 	 */
-	public static function procedure($procedureName, array $parameters = NULL, IConnection $connection = NULL, array $driverOptions = [])
+	public static function procedure(string $procedureName, ?array $parameters = NULL, ?IConnection $connection = NULL, array $driverOptions = []): PDOStatement
 	{
 		if(!isset($connection))
 			$connection = Connection::get();
