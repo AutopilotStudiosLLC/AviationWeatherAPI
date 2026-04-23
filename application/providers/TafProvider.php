@@ -132,7 +132,7 @@ class TafProvider extends RestfulController
      * @throws BadRequestException
      * @throws SystemException
      */
-	public function getList(string $stations = null): Json|string
+	public function getList(?string $stations = null): Json|string
     {
         $format = (string)($_GET['format'] ?? 'default');
         $hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 2);
@@ -183,35 +183,78 @@ class TafProvider extends RestfulController
 
 	/**
 	 * Get local TAF data
-	 * @return null|string
+	 * @return Json|string
+	 * @throws BadRequestException
 	 */
-	public function getLocal()
+	public function getLocal(): Json|string
 	{
 		$format = (string)($_GET['format'] ?? 'default');
-		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 3);
-		$distance = (int)$_GET['distance'] ?? null;
-		$latitude = (float)$_GET['latitude'] ?? null;
-		$longitude = (float)$_GET['longitude'] ?? null;
+		$hoursBeforeNow = isset($_GET['hoursBeforeNow']) ? (int)$_GET['hoursBeforeNow'] : 3;
+		$distance = isset($_GET['distance']) ? (int)$_GET['distance'] : null;
+		$latitude = isset($_GET['latitude']) ? (float)$_GET['latitude'] : null;
+		$longitude = isset($_GET['longitude']) ? (float)$_GET['longitude'] : null;
+
+		if(!isset($distance) || !isset($latitude) || !isset($longitude)) {
+			return Json::error('Missing required parameters: distance, latitude, longitude');
+		}
 
 		$box = AddsModel::boundingBoxMiles($distance, $latitude, $longitude);
 		try
 		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/taf', [
-				'bbox' => $box['minLat'].','.$box['minLon'].','.$box['maxLat'].','.$box['maxLon'],
-				'format' => 'json',
-				'hours' => (int)$hoursBeforeNow
-			]);
-			if ($format === 'json') {
-				return Json::success($response);
+			$identifiers = $this->getLocalStationsFromCache($box);
+
+			// If we didn't get any stations, return an empty result
+			if(count($identifiers) === 0) {
+				$result = new stdClass();
+				$result->TAF = [];
+				$result->results = 0;
+				return Json::success($result);
+			}
+
+			$tafs = $this->getTafsFromCache($identifiers);
+
+			$foundIdentifiers = [];
+			foreach($identifiers as $ident)
+			{
+				if(array_find($tafs, function ($taf) use ($ident) {
+						return strtoupper($taf->icao_id) === strtoupper($ident);
+					}) !== null)
+				{
+					$foundIdentifiers[] = strtoupper($ident);
+				}
+			}
+
+			$cachedResults = $this->formatFromDatabase($tafs);
+			if (count($foundIdentifiers) !== count($identifiers))
+			{
+				$fetchIdents = implode(',', array_diff($identifiers, $foundIdentifiers));
+				// If we don't have a cached response, get it from the API
+				$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT . '/taf', [
+					'format' => 'json',
+					'ids' => $fetchIdents,
+					'metar' => 'false',
+				]);
+
+				// Try to cache the response
+				try {
+					TafModel::cache($response);
+				} catch (Exception $e) {
+					ErrorLogModel::logError($e);
+				}
+				return Json::success($this->mergeCachedAndFetchedResults($tafs, $this->originalFormat($response)));
 			}
 			else
 			{
-				return Json::success($this->originalFormat($response));
+				return Json::success($cachedResults);
 			}
 		}
 		catch(RestException $e)
 		{
 			return Json::error($e->getMessage());
+		}
+		catch (BadRequestException|QueryException|ModelNotFoundException|ConfigurationException $e)
+		{
+			throw new BadRequestException($e->getMessage());
 		}
 	}
 
@@ -355,7 +398,7 @@ class TafProvider extends RestfulController
 //            $tafs = TafModel::findWhereStatement('tafs.icao_id IN('.$identString.') AND tafs.retrieved_at > DATE_SUB(NOW(), INTERVAL '.AddsModel::TAF_CACHING_INTERVAL.')');
             $tafs = TafModel::query()
                 ->whereIn('tafs.icao_id', $identifiers)
-                ->whereStatement('tafs.retrieved_at > DATE_SUB(NOW(), INTERVAL '.AddsModel::TAF_CACHING_INTERVAL.')')
+                ->whereStatement('tafs.retrieved_at > DATE_SUB(NOW(), INTERVAL '.TafModel::TAF_CACHING_INTERVAL.')')
                 ->get()
                 ->toArray();
 
@@ -392,10 +435,43 @@ class TafProvider extends RestfulController
             catch (QueryException $e) {}
 
             // Return empty array
-//            throw new ModelNotFoundException('No TAFs found for the specified station(s)');
             return [];
         }
     }
+
+	/**
+	 * Get TAF data within a bounding box from the database
+	 * @param array $boundingBox
+	 * @return TafModel[]
+	 * @throws BadRequestException
+	 * @throws ConfigurationException
+	 * @throws ModelNotFoundException
+	 * @throws QueryException
+	 */
+	protected function getLocalStationsFromCache(array $boundingBox): array
+	{
+		try
+		{
+			$stations = StationModel::query()
+				->whereBetween('latitude', $boundingBox['minLat'], $boundingBox['maxLat'])
+				->whereBetween('longitude', $boundingBox['minLon'], $boundingBox['maxLon'])
+				->get()
+				->toArray();
+
+			//Grab the required Identifiers
+			$identifiers = [];
+			foreach($stations as $station)
+			{
+				$identifiers[] = $station->icao_id;
+			}
+			return $identifiers;
+		}
+		catch (ModelNotFoundException $e)
+		{
+			// Return empty array
+			return [];
+		}
+	}
 
     private function mergeCachedAndFetchedResults(array $cachedResults, stdClass $fetchedResults): stdClass {
         $json = new stdClass();

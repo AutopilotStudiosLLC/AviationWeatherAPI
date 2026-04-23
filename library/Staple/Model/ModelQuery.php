@@ -52,7 +52,7 @@ class ModelQuery implements IQuery
 	 * @param IConnection|null $connection
 	 * @throws QueryException
 	 */
-	public function __construct(Model $model, IConnection $connection = NULL)
+	public function __construct(Model $model, ?IConnection $connection = NULL)
 	{
 		$this->setModel($model);
 		$this->setQueryObject(Query::select());
@@ -72,7 +72,7 @@ class ModelQuery implements IQuery
 	 * @return static
 	 * @throws QueryException
 	 */
-	public static function create(Model $model, IConnection $connection = NULL): static
+	public static function create(Model $model, ?IConnection $connection = NULL): static
 	{
 		return new static($model, $connection);
 	}
@@ -229,7 +229,7 @@ class ModelQuery implements IQuery
 	 * @param bool $parameterized
 	 * @return string
 	 */
-	public function build(bool $parameterized = null) : string
+	public function build(?bool $parameterized = null) : string
 	{
 		return $this->queryObject->build();
 	}
@@ -239,7 +239,7 @@ class ModelQuery implements IQuery
 	 * @param IConnection|NULL $connection
 	 * @return ModelQueryResult
 	 */
-	public function execute(IConnection $connection = NULL): ModelQueryResult
+	public function execute(?IConnection $connection = NULL): ModelQueryResult
 	{
 		return $this->get();
 	}
