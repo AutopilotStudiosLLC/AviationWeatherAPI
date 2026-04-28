@@ -48,7 +48,7 @@ class StationProvider extends RestfulController
 	{
 		if(!ctype_alnum(str_replace(',', '', $identifier)))
 		{
-			throw new BadRequestException('Invalid station identifier');
+            return Json::error('Invalid station identifier');
 		}
 		try
 		{
@@ -166,26 +166,80 @@ class StationProvider extends RestfulController
 		}
 	}
 
-	public function getList(): Json|string|null
+	public function getList(?string $stationString = null): Json|string|null
 	{
-		$hoursBeforeNow = (int)($_GET['hoursBeforeNow'] ?? 3);
-		$stationString = (string)($_GET['stations'] ?? '');
-		try
-		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/stationinfo', [
-				'format' => 'xml',
-				'ids' => $stationString,
-			]);
-			/** @var SimpleXMLElement $xml */
-			$xml = $response->data;
-			$xml->addChild('results', $xml['num_results']);
-			unset($xml['num_results']);
-			return Json::success($xml);
-		}
-		catch(RestException $e)
-		{
-			return Json::error($e->getMessage());
-		}
+        $identifier = $stationString ?? (string)($_GET['stations'] ?? '');
+        if(strlen($identifier) < 1)
+        {
+            return Json::error('No station identifiers provided');
+        }
+        if(!ctype_alnum(str_replace(',', '', $identifier)))
+        {
+            return Json::error('Invalid station identifier');
+        }
+        try
+        {
+            $identifiers = explode(',', strtoupper($identifier));
+            $foundIdentifiers = [];
+            try
+            {
+                $stations = $this->getStationsFromCache($identifiers);
+                foreach($identifiers as $ident)
+                {
+                    if(array_find($stations, function ($station) use ($ident) {
+                            return strtoupper($station->icao_id) === strtoupper($ident);
+                        }) !== null)
+                    {
+                        $foundIdentifiers[] = strtoupper($ident);
+                    }
+                }
+
+                $cachedResults = $this->formatFromDatabase($stations);
+                if (count($foundIdentifiers) !== count($identifiers))
+                {
+
+                    $stationString = (string)($_GET['stations'] ?? '');
+                    try
+                    {
+                        $fetchIdents = implode(',', array_diff($identifiers, $foundIdentifiers));
+                        $response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/stationinfo', [
+                            'format' => 'json',
+                            'ids' => $fetchIdents,
+                        ]);
+
+                        // Try to cache the response
+                        try {
+                            StationModel::cache($response);
+                        } catch (Exception $e) {
+                            ErrorLogModel::logError($e);
+                        }
+                        return Json::success($this->mergeCachedAndFetchedResults($stations, $this->originalFormat($response)));
+                    }
+                    catch(RestException $e)
+                    {
+                        return Json::error($e->getMessage());
+                    }
+                }
+                else
+                {
+                    return Json::success($cachedResults);
+                }
+            }
+            catch (ModelNotFoundException $e)
+            {
+                throw new BadRequestException($e->getMessage());
+            }
+            catch (ConfigurationException $e)
+            {
+                ErrorLogModel::logError($e);
+                throw new BadRequestException($e->getMessage());
+            }
+        }
+        catch(RestException $e)
+        {
+            ErrorLogModel::logError($e);
+            return Json::error($e->getMessage());
+        }
 	}
 
 	/**
@@ -312,6 +366,9 @@ class StationProvider extends RestfulController
 			$newStation->source = 'noaa';
 			$json->Station[] = $newStation;
 		}
+        if (count($json->Station) <= 1) {
+            $json->Station = array_pop($json->Station);
+        }
 		return $json;
 	}
 
@@ -325,6 +382,9 @@ class StationProvider extends RestfulController
 		{
 			$json->Station[] = StationModel::toResultFormat($station);
 		}
+        if (count($json->Station) <= 1) {
+            $json->Station = array_pop($json->Station);
+        }
 		return $json;
 	}
 
@@ -346,16 +406,16 @@ class StationProvider extends RestfulController
 				->get()
 				->toArray();
 
-			// If we didn't get at least as many TAFs as we requested, throw an exception
+			// If we didn't get at least as many Stations as we requested, throw an exception
 			if (count($stations) === 0) {
-				throw new ModelNotFoundException('No TAFs found for the specified station(s)');
+				throw new ModelNotFoundException('No records found for the specified station(s)');
 			}
 
 			return $stations;
 		}
 		catch (ModelNotFoundException $e)
 		{
-			// Remove any existing cached TAFs for this station
+			// Remove any existing cached Stations for this station
 			try
 			{
 				Query::delete('stations')->whereStatement('icao_id IN('.$identString.')')->execute();
@@ -368,15 +428,19 @@ class StationProvider extends RestfulController
 	}
 
 	private function mergeCachedAndFetchedResults(array $cachedResults, stdClass $fetchedResults): stdClass {
-		$json = new stdClass();
+        $json = new stdClass();
 		$json->Station = [];
 		foreach ($cachedResults as $station)
 		{
-			$json->Station[] = TafModel::toResultFormat($station);
+			$json->Station[] = StationModel::toResultFormat($station);
 		}
-		foreach($fetchedResults->Station as $element) {
-			$json->Station[] = $element;
-		}
+        if (is_array($fetchedResults->Station)) {
+            foreach ($fetchedResults->Station as $element) {
+                $json->Station[] = $element;
+            }
+        } else {
+            $json->Station[] = $fetchedResults->Station;
+        }
 		$json->results = count($json->Station);
 		return $json;
 	}
