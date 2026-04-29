@@ -188,8 +188,6 @@ class TafProvider extends RestfulController
 	 */
 	public function getLocal(): Json|string
 	{
-		$format = (string)($_GET['format'] ?? 'default');
-		$hoursBeforeNow = isset($_GET['hoursBeforeNow']) ? (int)$_GET['hoursBeforeNow'] : 3;
 		$distance = isset($_GET['distance']) ? (int)$_GET['distance'] : null;
 		$latitude = isset($_GET['latitude']) ? (float)$_GET['latitude'] : null;
 		$longitude = isset($_GET['longitude']) ? (float)$_GET['longitude'] : null;
@@ -452,11 +450,7 @@ class TafProvider extends RestfulController
 	{
 		try
 		{
-			$stations = StationModel::query()
-				->whereBetween('latitude', $boundingBox['minLat'], $boundingBox['maxLat'])
-				->whereBetween('longitude', $boundingBox['minLon'], $boundingBox['maxLon'])
-				->get()
-				->toArray();
+			$stations = StationModel::getLocalStations($boundingBox);
 
 			//Grab the required Identifiers
 			$identifiers = [];

@@ -91,11 +91,11 @@ class Select extends Query implements ISelectQuery
 	 * @param array|null $columns
 	 * @param IConnection|null $db
 	 * @param string|array|null $order
-	 * @param int|null $limit
+	 * @param int|Pager|null $limit
 	 * @param bool|null $parameterized
 	 * @throws QueryException
 	 */
-	public function __construct(mixed $table = NULL, array $columns = NULL, IConnection | null $db = NULL, string | array | null $order = NULL, int | Pager | null $limit = NULL, bool | null $parameterized = null)
+	public function __construct(mixed $table = NULL, ?array $columns = NULL, IConnection | null $db = NULL, string | array | null $order = NULL, int | Pager | null $limit = NULL, bool | null $parameterized = null)
 	{
 		parent::__construct(NULL, $db);
 		
@@ -212,7 +212,7 @@ class Select extends Query implements ISelectQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function setTable(Query|Union|array|string $table, string $alias = NULL): Select
+	public function setTable(Query|Union|array|string $table, ?string $alias = NULL): Select
 	{
 		if(is_array($table))
 		{
@@ -476,7 +476,7 @@ class Select extends Query implements ISelectQuery
 	 * @param bool $parameterized
 	 * @return $this
 	 */
-	public function havingCondition(string $column, string $operator, mixed $value, bool|null $columnJoin = null, string $paramName = null, bool $parameterized = true): static
+	public function havingCondition(string $column, string $operator, mixed $value, bool|null $columnJoin = null, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addHaving(Condition::get($column, $operator, $value, $columnJoin, $paramName, Condition::SQL_AND, $parameterized));
 		return $this;
@@ -502,7 +502,7 @@ class Select extends Query implements ISelectQuery
 	 * @param bool $parameterized
 	 * @return $this
 	 */
-	public function havingEqual(string $column, mixed $value, bool|null $columnJoin = null, string $paramName = null, bool $parameterized = true): static
+	public function havingEqual(string $column, mixed $value, bool|null $columnJoin = null, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addHaving(Condition::equal($column, $value, $columnJoin, $paramName, Condition::SQL_AND, $parameterized));
 		return $this;
@@ -517,7 +517,7 @@ class Select extends Query implements ISelectQuery
 	 * @param bool $parameterized
 	 * @return $this
 	 */
-	public function havingLike(string $column, mixed $value, bool|null $columnJoin = null, string $paramName = null, bool $parameterized = true): static
+	public function havingLike(string $column, mixed $value, bool|null $columnJoin = null, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addHaving(Condition::like($column, $value, $columnJoin, $paramName, Condition::SQL_AND, $parameterized));
 		return $this;
@@ -542,7 +542,7 @@ class Select extends Query implements ISelectQuery
 	 * @param bool $parameterized
 	 * @return $this
 	 */
-	public function havingIn(string $column, array $values, string $paramName = null, bool $parameterized = true): static
+	public function havingIn(string $column, array $values, ?string $paramName = null, bool $parameterized = true): static
 	{
 		$this->addHaving(Condition::in($column, $values, $paramName, Condition::SQL_AND, $parameterized));
 		return $this;
@@ -559,7 +559,7 @@ class Select extends Query implements ISelectQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function havingBetween(string $column, mixed $start, mixed $end, string $startParamName = null, string $endParamName = null, bool $parameterized = true): static
+	public function havingBetween(string $column, mixed $start, mixed $end, ?string $startParamName = null, ?string $endParamName = null, bool $parameterized = true): static
 	{
 		$this->addHaving(Condition::between($column, $start, $end, $startParamName, $endParamName, Condition::SQL_AND, $parameterized));
 		return $this;
@@ -669,11 +669,11 @@ class Select extends Query implements ISelectQuery
 	
 	/**
 	 * Builds the query and returns the string.
-	 * @see Staple_Query::build()
-	 * @param bool $parameterized
+	 * @param bool|null $parameterized
 	 * @return string
+	 *@see Staple_Query::build()
 	 */
-	function build(bool $parameterized = null): string
+	function build(?bool $parameterized = null): string
 	{
 		if(isset($parameterized))
 			$this->setParameterized($parameterized);

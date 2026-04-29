@@ -188,9 +188,9 @@ class ModelQuery implements IQuery
 	/**
 	 * @param mixed $table
 	 * @param string $alias
-	 * @return IQuery
+	 * @return static
 	 */
-	public function setTable($table, $alias = NULL) : IQuery
+	public function setTable($table, $alias = NULL) : static
 	{
 		$this->queryObject->setTable($table, $alias);
 		return $this;
@@ -198,9 +198,9 @@ class ModelQuery implements IQuery
 
 	/**
 	 * @param IConnection $connection
-	 * @return IQuery
+	 * @return static
 	 */
-	public function setConnection(IConnection $connection) : IQuery
+	public function setConnection(IConnection $connection) : static
 	{
 		$this->queryObject->setConnection($connection);
 		return $this;
@@ -214,11 +214,11 @@ class ModelQuery implements IQuery
 		return $this->queryObject->getParams();
 	}
 
-	/**
-	 * @param string $paramName
-	 * @param mixed $value
-	 * @return $this|IQuery
-	 */
+    /**
+     * @param string $paramName
+     * @param mixed $value
+     * @return IQuery
+     */
 	public function setParam(string $paramName, $value): IQuery
 	{
 		return $this->queryObject->setParam($paramName, $value);
@@ -231,14 +231,19 @@ class ModelQuery implements IQuery
 	 */
 	public function build(?bool $parameterized = null) : string
 	{
+        if(!isset($this->_table)) {
+            //Set the table
+            $this->queryObject->setTable($this->getModel()->_getTable());
+        }
 		return $this->queryObject->build();
 	}
 
-	/**
-	 * @alias static::get()
-	 * @param IConnection|NULL $connection
-	 * @return ModelQueryResult
-	 */
+    /**
+     * @alias static::get()
+     * @param IConnection|NULL $connection
+     * @return ModelQueryResult
+     * @throws ConfigurationException
+     */
 	public function execute(?IConnection $connection = NULL): ModelQueryResult
 	{
 		return $this->get();

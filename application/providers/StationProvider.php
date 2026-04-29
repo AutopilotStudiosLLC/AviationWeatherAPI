@@ -77,6 +77,11 @@ class StationProvider extends RestfulController
 						'ids' => $fetchIdents,
 					]);
 
+                    // Catch empty response
+                    if(is_string($response) && strlen($response) === 0) {
+                        return Json::error('No results found', 500);
+                    }
+
 					// Try to cache the response
 					try {
 						StationModel::cache($response);
@@ -114,22 +119,66 @@ class StationProvider extends RestfulController
 	 */
 	public function getLocal(): Json|string
 	{
-		$distance = (int)$_GET['distance'] ?? null;
-		$latitude = (float)$_GET['latitude'] ?? null;
-		$longitude = (float)$_GET['longitude'] ?? null;
+        $distance = isset($_GET['distance']) ? (int)$_GET['distance'] : null;
+        $latitude = isset($_GET['latitude']) ? (float)$_GET['latitude'] : null;
+        $longitude = isset($_GET['longitude']) ? (float)$_GET['longitude'] : null;
 
-		$box = $this->boundingBoxMiles($distance, $latitude, $longitude);
+        if(!isset($distance) || !isset($latitude) || !isset($longitude))
+        {
+            return Json::error('Missing required parameters: distance, latitude, longitude');
+        }
+
+        $box = AddsModel::boundingBoxMiles($distance, $latitude, $longitude);
 		try
 		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/stationinfo', [
-				'bbox' => $box['minLat'].','.$box['minLon'].','.$box['maxLat'].','.$box['maxLon'],
-				'format' => 'xml',
-			]);
-			/** @var SimpleXMLElement $xml */
-			$xml = $response->data;
-			$xml->addChild('results', $xml['num_results']);
-			unset($xml['num_results']);
-			return Json::success($xml);
+            $stations = StationModel::getLocalStations($box);
+
+            $foundCount = count($stations);
+            $foundExpired = [];
+            $validStations = [];
+            foreach($stations as $station)
+            {
+                $expired = DateTime::createFromFormat('Y-m-d H:i:s', $station->retrieved_at)->add(new DateInterval('P1M')) < new DateTime();
+                if($expired)
+                {
+                    $foundExpired[] = $station;
+                }
+                else
+                {
+                    $validStations[] = $station;
+                }
+            }
+            $cachedResults = $this->formatFromDatabase($validStations);
+
+            // Check if we need to retrieve results from the API
+            if ($foundCount === 0 || count($foundExpired) >= 1)
+            {
+                $response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/stationinfo', [
+                    'bbox' => $box['minLat'].','.$box['minLon'].','.$box['maxLat'].','.$box['maxLon'],
+                    'format' => 'json',
+                ]);
+
+                // Catch empty response
+                if(is_string($response) && strlen($response) === 0)
+                {
+                    return Json::error('No results found', 500);
+                }
+
+                // Try to cache the response
+                try
+                {
+                    StationModel::cache($response);
+                }
+                catch (Exception $e)
+                {
+                    ErrorLogModel::logError($e);
+                }
+                return Json::success($this->mergeCachedAndFetchedResults($validStations, $this->originalFormat($response)));
+            }
+            else
+            {
+                return Json::success($cachedResults);
+            }
 		}
 		catch(RestException $e)
 		{
@@ -206,6 +255,11 @@ class StationProvider extends RestfulController
                             'format' => 'json',
                             'ids' => $fetchIdents,
                         ]);
+
+                        // Catch empty response
+                        if(is_string($response) && strlen($response) === 0) {
+                            return Json::error('No results found', 500);
+                        }
 
                         // Try to cache the response
                         try {
@@ -359,7 +413,7 @@ class StationProvider extends RestfulController
 			$newStation->latitude = $station->lat;
 			$newStation->longitude = $station->lon;
 			$newStation->elevation_m = $station->elev;
-			$newStation->site = $station->site;
+			$newStation->site = StationModel::normalizeSiteName($station->site);
 			$newStation->state = $station->state;
 			$newStation->country = $station->country;
 			$newStation->site_type = $station->siteType;
@@ -441,7 +495,10 @@ class StationProvider extends RestfulController
         } else {
             $json->Station[] = $fetchedResults->Station;
         }
-		$json->results = count($json->Station);
+        $json->results = count($json->Station);
+        if (count($json->Station) <= 1) {
+            $json->Station = array_pop($json->Station);
+        }
 		return $json;
 	}
 }

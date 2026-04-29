@@ -38,7 +38,7 @@ use Staple\Pager;
 
 abstract class Query implements IQuery
 {
-	const PARAM_NAME_VALID_CHARACTERS = '/[^a-zA-Z0-9_]/';
+	const string PARAM_NAME_VALID_CHARACTERS = '/[^a-zA-Z0-9_]/';
 	/**
 	 * Table to act upon.
 	 * @var Query|array|string
@@ -46,7 +46,7 @@ abstract class Query implements IQuery
 	public Query|array|string $table;
 	/**
 	 * The schema that the table lives in. For SQL Server.
-	 * @var string
+	 * @var ?string
 	 */
 	protected string | null $schema = null;
 	
@@ -373,8 +373,8 @@ abstract class Query implements IQuery
 				case "integer":
 					$type = PDO::PARAM_INT;
 					break;
+                case "float":
 				case "double":
-					break;
 				case "string":
 					$type = PDO::PARAM_STR;
 					break;
@@ -491,8 +491,8 @@ abstract class Query implements IQuery
 	 * @return $this
 	 * @throws QueryException
 	 */
-	public function addWhere(Condition $where)
-	{
+	public function addWhere(Condition $where): static
+    {
 		$this->where[] = $where;
 
 		//Check for column name conflicts
@@ -532,8 +532,8 @@ abstract class Query implements IQuery
 		return $this;
 	}
 	
-	public function clearWhere()
-	{
+	public function clearWhere(): static
+    {
 		$this->where = array();
 		return $this;
 	}

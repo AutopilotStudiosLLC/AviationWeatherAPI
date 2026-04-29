@@ -225,7 +225,7 @@ class ModelSelectQuery extends ModelQuery implements ISelectQuery
 	 * @param string|null $startParamName
 	 * @param string|null $endParamName
 	 * @param bool $parameterized
-	 * @return ModelSelectQuery
+	 * @return static
 	 */
 	public function whereBetween($column, $start, $end, ?string $startParamName = null, ?string $endParamName = null, bool $parameterized = true): static
 	{

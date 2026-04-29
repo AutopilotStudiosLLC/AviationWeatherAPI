@@ -1,10 +1,9 @@
 CREATE DATABASE IF NOT EXISTS `aviationweather`;
 
-DROP TABLE IF EXISTS site_types;
 DROP TABLE IF EXISTS stations;
 CREATE TABLE IF NOT EXISTS stations (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    icao_id VARCHAR(4) NOT NULL,
+    icao_id VARCHAR(4) UNIQUE NOT NULL,
     iata_id VARCHAR(3) NULL,
     faa_id VARCHAR(4) NULL,
     wmo_id VARCHAR(10) NULL,
@@ -18,6 +17,8 @@ CREATE TABLE IF NOT EXISTS stations (
     types VARCHAR(255) NULL,
     retrieved_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX station_id_index ON stations(icao_id);
 
 DROP TABLE IF EXISTS airport_runways;
 DROP TABLE IF EXISTS airports;
