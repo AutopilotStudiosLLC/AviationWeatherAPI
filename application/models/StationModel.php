@@ -104,7 +104,11 @@ class StationModel extends Model
       	$json->site = $station->site_name;
       	$json->state = $station->state;
       	$json->country = $station->country;
-	    $json->site_type = explode(',', $station->types);
+        if (is_array($station->types)) {
+            $json->site_type = $station->types;
+        } else {
+            $json->site_type = strlen($station->types) > 0 ? explode(',', $station->types) : [];
+        }
         $json->source = 'cached';
         return $json;
     }
@@ -152,7 +156,7 @@ class StationModel extends Model
                 $station->state = $result->state;
                 $station->country = $result->country;
                 $station->priority = $result->priority;
-                $station->types = $result->types;
+                $station->types = strlen($result->types) > 0 ? explode(',', $result->types) : [];
                 $station->retrieved_at = $result->retrieved_at;
                 $stations[] = $station;
             }

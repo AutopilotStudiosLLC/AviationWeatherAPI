@@ -233,12 +233,16 @@ class TafProvider extends RestfulController
 					'metar' => 'false',
 				]);
 
-				// Try to cache the response
-				try {
-					TafModel::cache($response);
-				} catch (Exception $e) {
-					ErrorLogModel::logError($e);
-				}
+                if ($response !== '') {
+                    // Try to cache the response
+                    try {
+                        TafModel::cache($response);
+                    } catch (Exception $e) {
+                        ErrorLogModel::logError($e);
+                    }
+                } else {
+                    $response = [];
+                }
 				return Json::success($this->mergeCachedAndFetchedResults($tafs, $this->originalFormat($response)));
 			}
 			else
@@ -307,7 +311,7 @@ class TafProvider extends RestfulController
 		}
 	}
 
-	protected function formatFromDatabase(array $tafs, string $source = 'cached'): stdClass
+	protected function formatFromDatabase(array $tafs): stdClass
 	{
 		$json = new stdClass();
 		$json->TAF = [];
@@ -452,9 +456,18 @@ class TafProvider extends RestfulController
 		{
 			$stations = StationModel::getLocalStations($boundingBox);
 
+            $tafStations = array_filter($stations, function ($station) {
+                if(is_array($station->types)) {
+                    return array_find($station->types, function ($type) {
+                        return $type === 'TAF';
+                    });
+                }
+                return false;
+            });
+
 			//Grab the required Identifiers
 			$identifiers = [];
-			foreach($stations as $station)
+			foreach($tafStations as $station)
 			{
 				$identifiers[] = $station->icao_id;
 			}
