@@ -4,8 +4,7 @@ class AddsModel
 {
 	const DATETIME_FORMAT = 'Y-m-d\TH:i:s.v\Z';
 	const HTTP_SOURCE_ROOT = 'https://aviationweather.gov/api/data';
-
-    const TAF_CACHING_INTERVAL = '3 MINUTE';
+    const DATABASE_DATE_FORMAT = 'Y-m-d H:i:s';
 
 	public function metar()
 	{

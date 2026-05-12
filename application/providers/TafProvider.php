@@ -445,10 +445,8 @@ class TafProvider extends RestfulController
 	 * Get TAF data within a bounding box from the database
 	 * @param array $boundingBox
 	 * @return TafModel[]
-	 * @throws BadRequestException
-	 * @throws ConfigurationException
-	 * @throws ModelNotFoundException
-	 * @throws QueryException
+     * @throws ConfigurationException
+     * @throws QueryException
 	 */
 	protected function getLocalStationsFromCache(array $boundingBox): array
 	{

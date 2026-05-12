@@ -2,8 +2,12 @@
 
 use Staple\Controller\RestfulController;
 use Staple\Exception\BadRequestException;
+use Staple\Exception\ConfigurationException;
+use Staple\Exception\ModelNotFoundException;
+use Staple\Exception\QueryException;
 use Staple\Exception\RestException;
 use Staple\Json;
+use Staple\Query\Query;
 use Staple\Request;
 use Staple\Rest\Rest;
 
@@ -82,14 +86,14 @@ class MetarProvider extends RestfulController
 		}
 	}
 
-	/**
-	 * Get recent METAR data
-	 * @param string $identifier
-	 * @param float $hoursBeforeNow
-	 * @return Json|string|null
-	 * @throws BadRequestException
-	 */
-	public function getRecent(string $identifier = 'KSEA', float $hoursBeforeNow = 3): Json|string|null
+    /**
+     * Get recent METAR data
+     * @param string $identifier
+     * @param float|null $hoursBeforeNow
+     * @return Json|string|null
+     * @throws BadRequestException
+     */
+	public function getRecent(string $identifier = 'KSEA', ?float $hoursBeforeNow = 3): Json|string|null
 	{
 		if(!ctype_alnum(str_replace(',', '', $identifier))) {
 			throw new BadRequestException();
@@ -97,40 +101,63 @@ class MetarProvider extends RestfulController
 
 		try
 		{
-			$response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/metar', [
-				'format' => 'xml',
-				'taf' => 'false',
-				'ids' => strtoupper((string)$identifier),
-				'hours' => (int)$hoursBeforeNow
-			]);
-			/** @var SimpleXMLElement $xml */
-			$xml = $response->data;
-			$xml->addChild('results', $xml['num_results']);
-			unset($xml['num_results']);
-			foreach($xml->METAR as $metar)
-			{
-				$sky = $metar->sky_condition;
-				if(count($sky) == 0) continue;
-				foreach($sky as $condition)
-				{
-					$unsetters = [];
-					foreach($condition->attributes() as $key => $value)
-					{
-						$condition->addChild($key, $value);
-						$unsetters[] = $key;
-					}
-					foreach($unsetters as $attribute)
-					{
-						unset($condition[$attribute]);
-					}
-				}
-			}
-			return Json::success($xml);
+            $identifiers = explode(',', strtoupper($identifier));
+            $foundIdentifiers = [];
+            try
+            {
+                $metars = $this->getMetarsFromCache($identifiers);
+                foreach($identifiers as $ident)
+                {
+                    if(array_find($metars, function ($metar) use ($ident) {
+                            return strtoupper($metar->icao_id) === strtoupper($ident);
+                        }) !== null)
+                    {
+                        $foundIdentifiers[] = strtoupper($ident);
+                    }
+                }
+
+//                $cachedResults = $metars;
+                $cachedResults = $this->formatFromDatabase($metars);
+                if (count($foundIdentifiers) !== count($identifiers))
+                {
+                    $fetchIdents = implode(',', array_diff($identifiers, $foundIdentifiers));
+                    /* @var array $response */
+                    $response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/metar', [
+                        'format' => 'json',
+                        'taf' => 'false',
+                        'ids' => strtoupper($identifier),
+                        'hours' => (float)$hoursBeforeNow ?? 1.5,
+                    ]);
+
+                    // Try to cache the response
+                    try {
+                        MetarModel::cache($response);
+                    } catch (Exception $e) {
+                        ErrorLogModel::logError($e);
+                        throw new BadRequestException($e->getMessage());
+                    }
+                    return Json::success($this->mergeCachedAndFetchedResults($metars, $this->originalFormat($response)));
+                }
+                else
+                {
+                    return Json::success($cachedResults);
+                }
+            }
+            catch (ModelNotFoundException $e)
+            {
+                throw new BadRequestException($e->getMessage());
+            }
+            catch (ConfigurationException $e)
+            {
+                ErrorLogModel::logError($e);
+                throw new BadRequestException($e->getMessage());
+            }
 		}
-		catch(RestException $e)
-		{
-			return Json::error($e->getMessage());
-		}
+        catch(RestException $e)
+        {
+            ErrorLogModel::logError($e);
+            return Json::error($e->getMessage());
+        }
 	}
 
 	/**
@@ -296,4 +323,183 @@ class MetarProvider extends RestfulController
 		}
 		return $lon - 180.0;
 	}
+
+	/**
+	 * Convert atmospheric pressure from millibars to inches of mercury.
+	 *
+	 * @param float $millibars
+	 * @return float
+	 */
+	protected function convertToHg(float $millibars): float
+	{
+		return round($millibars / 33.864, 2);
+	}
+
+    protected function originalFormat(mixed $response): stdClass
+    {
+        $json = new stdClass();
+        $json->METAR = [];
+
+        $json->results = count($response);
+        foreach ($response as $metar)
+        {
+            $newMetar = new stdClass();
+            $newMetar->station_id = $metar->icaoId;
+            $newMetar->receipt_time = $metar->receiptTime ?? null;
+            $newMetar->observation_time = new DateTime()->setTimestamp($metar->obsTime)->format(AddsModel::DATETIME_FORMAT);
+            $newMetar->report_time = $metar->reportTime ?? null;
+            $newMetar->temp_c = $metar->temp ?? null;
+            $newMetar->dewpoint_c = $metar->dewp ?? null;
+            $newMetar->wind_dir_degrees = $metar->wdir ?? null;
+            $newMetar->wind_speed_kt = $metar->wspd ?? null;
+            $newMetar->wind_gust_kt = $metar->wgst ?? null;
+            $newMetar->visibility_statute_mi = $metar->visib;
+            $newMetar->altim_in_hg = $this->convertToHg($metar->altim);
+            $newMetar->sea_level_pressure_mb = isset($metar->slp) ? $metar->slp : null;
+            $newMetar->quality_control_flags = new stdClass();
+            $newMetar->metar_type = "METAR";
+            $newMetar->raw_text = $metar->rawOb;
+            $newMetar->latitude = $metar->lat ?? null;
+            $newMetar->longitude = $metar->lon ?? null;
+            $newMetar->elevation_m = $metar->elev ?? null;
+            $newMetar->station_name = StationModel::normalizeSiteName($metar->name);
+            $newMetar->sky_cover = $metar->cover ?? null;
+            $newMetar->flight_category = $metar->fltCat ?? null;
+            $newMetar->sky_condition = [];
+            foreach ($metar->clouds as $cloud)
+            {
+                $newCast = new stdClass();
+                if(isset($cloud->cover))
+                    $newCast->sky_cover = $cloud->cover;
+                if(isset($cloud->base))
+                    $newCast->cloud_base = $cloud->base;
+                if(isset($cloud->type))
+                    $newCast->cloud_type = $cloud->type;
+                $newMetar->sky_condition[] = $newCast;
+            }
+            $newMetar->source = 'noaa';
+            $json->METAR[] = $newMetar;
+        }
+        return $json;
+    }
+
+    protected function formatFromDatabase(array $metars): stdClass
+    {
+        $json = new stdClass();
+        $json->METAR = [];
+
+        $json->results = count($metars);
+        foreach ($metars as $metar)
+        {
+            $json->METAR[] = MetarModel::toResultFormat($metar);
+        }
+        return $json;
+    }
+
+    /**
+     * Get METAR data for a list of stations from the database
+     * @param array $identifiers
+     * @return MetarModel[]
+     * @throws BadRequestException
+     * @throws ConfigurationException
+     * @throws ModelNotFoundException
+     * @throws QueryException
+     */
+    protected function getMetarsFromCache(array $identifiers): array
+    {
+        $identString = '';
+        foreach ($identifiers as $id) {
+            if(!ctype_alnum($id)) {
+                throw new BadRequestException('Invalid station identifier');
+            }
+            $identString .= "'".strtoupper($id)."',";
+        }
+        $identString = substr($identString, 0, -1);
+        try
+        {
+            $metars = MetarModel::query()
+                ->whereIn('metars.icao_id', $identifiers)
+                ->whereStatement('metars.retrieved_at > DATE_SUB(NOW(), INTERVAL '.MetarModel::METAR_CACHING_INTERVAL.')')
+                ->get()
+                ->toArray();
+
+            // If we didn't get at least as many METARs as we requested, throw an exception
+            if (count($metars) === 0) {
+                throw new ModelNotFoundException('No METARs found for the specified station(s)');
+            }
+
+            /** @var MetarModel $metar */
+            foreach ($metars as $metar) {
+                $clouds = MetarCloudModel::select()
+                    ->whereEqual('metar_id', $metar->id)
+                    ->get()->toArray();
+                $metar->clouds = $clouds;
+            }
+
+            return $metars;
+        }
+        catch (ModelNotFoundException $e)
+        {
+            // Remove any existing cached METARs for this station
+            try
+            {
+                Query::delete('metars')->whereStatement('icao_id IN('.$identString.')')->execute();
+            }
+            catch (QueryException $e) {}
+
+            // Return empty array
+            return [];
+        }
+    }
+
+    /**
+     * Get METAR data within a bounding box from the database
+     * @param array $boundingBox
+     * @return MetarModel[]
+     * @throws ConfigurationException
+     * @throws QueryException
+     */
+    protected function getLocalStationsFromCache(array $boundingBox): array
+    {
+        try
+        {
+            $stations = StationModel::getLocalStations($boundingBox);
+
+            $metarStations = array_filter($stations, function ($station) {
+                if(is_array($station->types)) {
+                    return array_find($station->types, function ($type) {
+                        return $type === 'METAR';
+                    });
+                }
+                return false;
+            });
+
+            //Grab the required Identifiers
+            $identifiers = [];
+            foreach($metarStations as $station)
+            {
+                $identifiers[] = $station->icao_id;
+            }
+            return $identifiers;
+        }
+        catch (ModelNotFoundException $e)
+        {
+            // Return empty array
+            return [];
+        }
+    }
+
+    private function mergeCachedAndFetchedResults(array $cachedResults, stdClass $fetchedResults): stdClass {
+        $json = new stdClass();
+        $json->METAR = [];
+        foreach ($cachedResults as $metar)
+        {
+            $json->METAR[] = MetarModel::toResultFormat($metar);
+        }
+        foreach($fetchedResults->METAR as $noaaMetar) {
+            $json->METAR[] = $noaaMetar;
+        }
+        $json->results = count($json->METAR);
+        return $json;
+    }
 }
