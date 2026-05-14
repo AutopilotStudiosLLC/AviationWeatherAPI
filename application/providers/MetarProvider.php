@@ -116,7 +116,6 @@ class MetarProvider extends RestfulController
                     }
                 }
 
-//                $cachedResults = $metars;
                 $cachedResults = $this->formatFromDatabase($metars);
                 if (count($foundIdentifiers) !== count($identifiers))
                 {
@@ -125,7 +124,7 @@ class MetarProvider extends RestfulController
                     $response = Rest::get(AddsModel::HTTP_SOURCE_ROOT.'/metar', [
                         'format' => 'json',
                         'taf' => 'false',
-                        'ids' => strtoupper($identifier),
+                        'ids' => strtoupper($fetchIdents),
                         'hours' => (float)$hoursBeforeNow ?? 1.5,
                     ]);
 

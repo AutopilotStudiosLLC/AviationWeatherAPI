@@ -20,6 +20,7 @@ require_once __DIR__ . '/../../../application/models/AddsModel.php';
 require_once __DIR__ . '/../../../application/models/TafForecastModel.php';
 require_once __DIR__ . '/../../../application/models/TafForecastCloudModel.php';
 require_once __DIR__ . '/../../../application/models/ErrorLogModel.php';
+require_once __DIR__ . '/../../../application/models/StationModel.php';
 
 /**
  * Mock Rest class to intercept static calls
@@ -90,10 +91,14 @@ class TafProviderTest extends TestCase
         if (file_exists($schemaFile)) {
             $schema = file_get_contents($schemaFile);
             
+            // Remove MySQL comments
+            $schema = preg_replace('/#.*$/m', '', $schema);
+            
             // Adapt MySQL schema to SQLite
             $schema = preg_replace('/CREATE DATABASE IF NOT EXISTS `[^`]+`;/', '', $schema);
             $schema = preg_replace('/DROP TABLE IF EXISTS ([a-zA-Z_]+);/', 'DROP TABLE IF EXISTS "$1";', $schema);
             $schema = preg_replace('/CREATE TABLE IF NOT EXISTS ([a-zA-Z_]+)/', 'CREATE TABLE IF NOT EXISTS "$1"', $schema);
+            $schema = preg_replace('/CREATE INDEX IF NOT EXISTS ([a-zA-Z_]+) ON ([a-zA-Z_]+)/', 'CREATE INDEX IF NOT EXISTS "$1" ON "$2"', $schema);
             
             // SQLite specific: INTEGER PRIMARY KEY AUTOINCREMENT
             $schema = preg_replace('/id INT NOT NULL AUTO_INCREMENT PRIMARY KEY/', 'id INTEGER PRIMARY KEY AUTOINCREMENT', $schema);
@@ -313,7 +318,7 @@ class TafProviderTest extends TestCase
 
     public function testGetLocal()
     {
-        $_GET['distance'] = 50;
+        $_GET['distance'] = 200;
         $_GET['latitude'] = 45.0;
         $_GET['longitude'] = -122.0;
         $_GET['format'] = 'json';
@@ -321,12 +326,17 @@ class TafProviderTest extends TestCase
         $mockData = $this->getMockTafData('KPDX');
         MockRest::$response = [$mockData];
 
+        // Seed station
+        $this->sqlitePdo->exec("INSERT INTO stations (icao_id, site_name, latitude, longitude, elevation, types) VALUES ('KPDX', 'Portland', 45.0, -122.0, 31, 'TAF,METAR')");
+
         $response = $this->provider->getLocal();
         $data = $response->jsonSerialize();
-        $this->assertCount(1, $data);
-        $this->assertEquals('KPDX', $data[0]->icaoId);
+        $this->assertIsObject($data);
+        $this->assertObjectHasProperty('TAF', $data);
+        $this->assertCount(1, $data->TAF);
+        $this->assertEquals('KPDX', $data->TAF[0]->station_id);
         $this->assertStringContainsString('/taf', MockRest::$lastUrl);
-        $this->assertArrayHasKey('bbox', MockRest::$lastData);
+        $this->assertArrayHasKey('ids', MockRest::$lastData);
     }
 
     public function testGetFlight()
