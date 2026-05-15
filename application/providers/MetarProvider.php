@@ -323,17 +323,6 @@ class MetarProvider extends RestfulController
 		return $lon - 180.0;
 	}
 
-	/**
-	 * Convert atmospheric pressure from millibars to inches of mercury.
-	 *
-	 * @param float $millibars
-	 * @return float
-	 */
-	protected function convertToHg(float $millibars): float
-	{
-		return round($millibars / 33.864, 2);
-	}
-
     protected function originalFormat(mixed $response): stdClass
     {
         $json = new stdClass();
@@ -353,8 +342,8 @@ class MetarProvider extends RestfulController
             $newMetar->wind_speed_kt = $metar->wspd ?? null;
             $newMetar->wind_gust_kt = $metar->wgst ?? null;
             $newMetar->visibility_statute_mi = $metar->visib;
-            $newMetar->altim_in_hg = $this->convertToHg($metar->altim);
-            $newMetar->sea_level_pressure_mb = isset($metar->slp) ? $metar->slp : null;
+            $newMetar->altim_in_hg = MetarModel::convertToHg($metar->altim);
+            $newMetar->sea_level_pressure_mb = $metar->slp ?? null;
             $newMetar->quality_control_flags = new stdClass();
             $newMetar->metar_type = "METAR";
             $newMetar->raw_text = $metar->rawOb;
@@ -371,7 +360,7 @@ class MetarProvider extends RestfulController
                 if(isset($cloud->cover))
                     $newCast->sky_cover = $cloud->cover;
                 if(isset($cloud->base))
-                    $newCast->cloud_base = $cloud->base;
+                    $newCast->cloud_base_ft_ag = $cloud->base;
                 if(isset($cloud->type))
                     $newCast->cloud_type = $cloud->type;
                 $newMetar->sky_condition[] = $newCast;
@@ -401,7 +390,6 @@ class MetarProvider extends RestfulController
      * @return MetarModel[]
      * @throws BadRequestException
      * @throws ConfigurationException
-     * @throws ModelNotFoundException
      * @throws QueryException
      */
     protected function getMetarsFromCache(array $identifiers): array

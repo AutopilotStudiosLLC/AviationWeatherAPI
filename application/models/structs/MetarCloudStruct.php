@@ -16,9 +16,9 @@ class MetarCloudStruct
 		{
 			$struct = new MetarCloudStruct();
             $struct->metar_id = $cloud->metar_id ?? null;
-            $struct->cover = $cloud->cloud_cover ?? null;
-            $struct->base = $cloud->cloud_base ?? null;
-            $struct->type = $cloud->cloud_type ?? null;
+            $struct->cover = $cloud->cover ?? null;
+            $struct->base = $cloud->base ?? null;
+            $struct->type = $cloud->type ?? null;
 			$array[] = $struct;
 		}
 		return $array;
