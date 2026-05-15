@@ -5,7 +5,7 @@ use stdClass;
 
 class StationStruct
 {
-	public string $icaoId;
+	public string|null $icaoId;
 	public string|null $iataId;
 	public string|null $faaId;
 	public string|null $wmoId;

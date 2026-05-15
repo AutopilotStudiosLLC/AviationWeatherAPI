@@ -360,7 +360,7 @@ class MetarProvider extends RestfulController
                 if(isset($cloud->cover))
                     $newCast->sky_cover = $cloud->cover;
                 if(isset($cloud->base))
-                    $newCast->cloud_base_ft_ag = $cloud->base;
+                    $newCast->cloud_base_ft_agl = $cloud->base;
                 if(isset($cloud->type))
                     $newCast->cloud_type = $cloud->type;
                 $newMetar->sky_condition[] = $newCast;

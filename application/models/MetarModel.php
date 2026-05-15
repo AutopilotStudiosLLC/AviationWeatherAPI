@@ -116,7 +116,7 @@ class MetarModel extends Model
             if(isset($cloud->cloud_cover) && strlen($cloud->cloud_cover) > 0)
                 $newCloud->sky_cover = $cloud->cloud_cover;
             if(isset($cloud->cloud_base) && strlen($cloud->cloud_base) > 0)
-                $newCloud->cloud_base_ft_ag = $cloud->cloud_base;
+                $newCloud->cloud_base_ft_agl = $cloud->cloud_base;
             if(isset($cloud->cloud_type) && strlen($cloud->cloud_type) > 0)
                 $newCloud->cloud_type = $cloud->cloud_type;
             $json->sky_condition[] = $newCloud;
