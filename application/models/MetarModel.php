@@ -98,7 +98,7 @@ class MetarModel extends Model
         $json->wind_speed_kt = $metar->wind_speed;
         $json->wind_gust_kt = $metar->wind_gust;
         $json->visibility_statute_mi = $metar->visibility;
-        $json->altim_in_hg = MetarModel::convertToHg($metar->altimeter);
+        $json->altim_in_hg = MetarModel::convertToHg($metar->altimeter ?? 0);
         $json->sea_level_pressure_mb = $metar->sea_level_pressure ?? null;
         $json->quality_control_flags = new stdClass();
         $json->metar_type = "METAR";

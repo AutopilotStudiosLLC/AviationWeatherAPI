@@ -91,7 +91,7 @@ class MetarProvider extends RestfulController
      * @param string $identifier
      * @param float|null $hoursBeforeNow
      * @return Json|string|null
-     * @throws BadRequestException
+     * @throws BadRequestException|QueryException
      */
 	public function getRecent(string $identifier = 'KSEA', ?float $hoursBeforeNow = 3): Json|string|null
 	{
@@ -341,7 +341,7 @@ class MetarProvider extends RestfulController
             $newMetar->wind_dir_degrees = $metar->wdir ?? null;
             $newMetar->wind_speed_kt = $metar->wspd ?? null;
             $newMetar->wind_gust_kt = $metar->wgst ?? null;
-            $newMetar->visibility_statute_mi = $metar->visib;
+            $newMetar->visibility_statute_mi = $metar->visib ?? null;
             $newMetar->altim_in_hg = MetarModel::convertToHg($metar->altim);
             $newMetar->sea_level_pressure_mb = $metar->slp ?? null;
             $newMetar->quality_control_flags = new stdClass();
@@ -354,16 +354,17 @@ class MetarProvider extends RestfulController
             $newMetar->sky_cover = $metar->cover ?? null;
             $newMetar->flight_category = $metar->fltCat ?? null;
             $newMetar->sky_condition = [];
-            foreach ($metar->clouds as $cloud)
-            {
-                $newCast = new stdClass();
-                if(isset($cloud->cover))
-                    $newCast->sky_cover = $cloud->cover;
-                if(isset($cloud->base))
-                    $newCast->cloud_base_ft_agl = $cloud->base;
-                if(isset($cloud->type))
-                    $newCast->cloud_type = $cloud->type;
-                $newMetar->sky_condition[] = $newCast;
+            if(isset($metar->clouds)) {
+                foreach ($metar->clouds as $cloud) {
+                    $newCast = new stdClass();
+                    if (isset($cloud->cover))
+                        $newCast->sky_cover = $cloud->cover;
+                    if (isset($cloud->base))
+                        $newCast->cloud_base_ft_agl = $cloud->base;
+                    if (isset($cloud->type))
+                        $newCast->cloud_type = $cloud->type;
+                    $newMetar->sky_condition[] = $newCast;
+                }
             }
             $newMetar->source = 'noaa';
             $json->METAR[] = $newMetar;

@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS metars (
     observation_time DATETIME NOT NULL,
     temperature DECIMAL(10,2) NULL,
     dew_point DECIMAL(10,2) NULL,
-    wind_direction INT NULL,
+    wind_direction VARCHAR(4) NULL,
     wind_speed INT NULL,
     wind_gust INT NULL,
     visibility VARCHAR(255) NULL,
