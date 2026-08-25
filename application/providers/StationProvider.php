@@ -323,6 +323,242 @@ class StationProvider extends RestfulController
 		}
 	}
 
+    public const array DEFAULT_REGIONS = [
+        'continental_us' => [
+            'minLat' => 24.0,
+            'maxLat' => 50.0,
+            'minLon' => -125.0,
+            'maxLon' => -66.0,
+        ],
+        'canada' => [
+            'minLat' => 41.5,
+            'maxLat' => 84.0,
+            'minLon' => -141.0,
+            'maxLon' => -52.0,
+        ],
+        'alaska' => [
+            'minLat' => 51.0,
+            'maxLat' => 72.0,
+            'minLon' => -180.0,
+            'maxLon' => -129.0,
+        ],
+        'hawaii' => [
+            'minLat' => 18.0,
+            'maxLat' => 29.0,
+            'minLon' => -180.0,
+            'maxLon' => -154.0,
+        ],
+    ];
+
+    public function getPopulateCache(?string $region = null): Json|string|null
+    {
+        $startTime = microtime(true);
+
+        $regions = [self::DEFAULT_REGIONS['continental_us']];
+        if ($region === null) {
+            $regions = self::DEFAULT_REGIONS;
+        } else {
+            if (array_key_exists($region, self::DEFAULT_REGIONS)) {
+                $regions = [self::DEFAULT_REGIONS[$region]];
+            }
+        }
+
+        $grid = $this->generateGrid($regions);
+
+        $stationsCachedCount = 0;
+        $blocksBrokenCount = 0;
+        $errors = [];
+        $totalRequestTime = 0.0;
+        $requestCount = 0;
+        $uniqueStationIds = [];
+
+        foreach ($grid as $box) {
+            $this->processBoundingBox(
+                $box,
+                $stationsCachedCount,
+                $blocksBrokenCount,
+                $errors,
+                $totalRequestTime,
+                $requestCount,
+                $uniqueStationIds,
+                0
+            );
+        }
+
+        $totalTime = microtime(true) - $startTime;
+        $averageRequestTime = $requestCount > 0 ? ($totalRequestTime / $requestCount) : 0.0;
+
+        $report = new stdClass();
+        $report->stations_cached = count($uniqueStationIds) > 0 ? count($uniqueStationIds) : $stationsCachedCount;
+        $report->unique_stations = count($uniqueStationIds);
+        $report->total_stations_processed = $stationsCachedCount;
+        $report->blocks_broken = $blocksBrokenCount;
+        $report->subdivisions = $blocksBrokenCount;
+        $report->errors_encountered = count($errors) > 0;
+        $report->errors = $errors;
+        $report->error_count = count($errors);
+        $report->requests_made = $requestCount;
+        $report->average_request_time = $averageRequestTime;
+        $report->total_time = $totalTime;
+
+        return Json::success($report);
+    }
+
+    /**
+     * Generate an overlapping grid of bounding boxes with maximum width and height in miles across regions.
+     *
+     * @param array $regions
+     * @param float $boxSizeMiles Maximum width/height of each bounding box in miles
+     * @param float $overlapMiles Overlap in miles between adjacent bounding boxes
+     * @return array
+     */
+    protected function generateGrid(array $regions, float $boxSizeMiles = 300.0, float $overlapMiles = 20.0): array
+    {
+        $stepMiles = max(10.0, $boxSizeMiles - $overlapMiles);
+        $kmPerDegLat = 110.574;
+        $stepLatDeg = ($stepMiles * 1.609344) / $kmPerDegLat;
+        $halfBoxLatDeg = (($boxSizeMiles / 2.0) * 1.609344) / $kmPerDegLat;
+
+        $boxes = [];
+
+        foreach ($regions as $region) {
+            $minLat = (float)$region['minLat'];
+            $maxLat = (float)$region['maxLat'];
+            $minLon = (float)$region['minLon'];
+            $maxLon = (float)$region['maxLon'];
+
+            $lat = $minLat + $halfBoxLatDeg;
+            do {
+                $currentLat = min($maxLat, max($minLat, $lat));
+                $clampedLat = min(89.0, max(-89.0, $currentLat));
+                $kmPerDegLon = 111.320 * cos(deg2rad($clampedLat));
+
+                if ($kmPerDegLon < 1e-6) {
+                    $stepLonDeg = 360.0;
+                    $halfBoxLonDeg = 180.0;
+                } else {
+                    $stepLonDeg = ($stepMiles * 1.609344) / $kmPerDegLon;
+                    $halfBoxLonDeg = (($boxSizeMiles / 2.0) * 1.609344) / $kmPerDegLon;
+                }
+
+                $lon = $minLon + $halfBoxLonDeg;
+                do {
+                    $currentLon = $this->normalizeLon($lon);
+                    $box = $this->boundingBoxMiles($boxSizeMiles, $clampedLat, $currentLon);
+                    $key = $box['minLat'] . ',' . $box['minLon'] . ',' . $box['maxLat'] . ',' . $box['maxLon'];
+                    $boxes[$key] = $box;
+                    $lon += $stepLonDeg;
+                } while ($lon - $halfBoxLonDeg < $maxLon);
+
+                $lat += $stepLatDeg;
+            } while ($lat - $halfBoxLatDeg < $maxLat);
+        }
+
+        return array_values($boxes);
+    }
+
+    /**
+     * Process a single bounding box, querying the API, caching stations, and subdividing if >= 400 results return.
+     *
+     * @param array $box
+     * @param int $stationsCachedCount
+     * @param int $blocksBrokenCount
+     * @param array $errors
+     * @param float $totalRequestTime
+     * @param int $requestCount
+     * @param array $uniqueStationIds
+     * @param int $depth
+     * @return void
+     */
+    protected function processBoundingBox(
+        array $box,
+        int &$stationsCachedCount,
+        int &$blocksBrokenCount,
+        array &$errors,
+        float &$totalRequestTime,
+        int &$requestCount,
+        array &$uniqueStationIds,
+        int $depth = 0
+    ): void {
+        // Allow 30 seconds for each request to complete
+        set_time_limit(30);
+        $bboxParam = $box['minLat'] . ',' . $box['minLon'] . ',' . $box['maxLat'] . ',' . $box['maxLon'];
+
+        $reqStart = microtime(true);
+        $response = null;
+        try {
+            $response = Rest::get(AddsModel::HTTP_SOURCE_ROOT . '/stationinfo', [
+                'bbox' => $bboxParam,
+                'format' => 'json',
+            ]);
+        } catch (Exception $e) {
+            ErrorLogModel::logError($e);
+            $errors[] = $e->getMessage();
+        }
+        $reqDuration = microtime(true) - $reqStart;
+        $totalRequestTime += $reqDuration;
+        $requestCount++;
+
+        // Normalize response
+        if (is_string($response)) {
+            if (strlen(trim($response)) === 0 || str_contains($response, 'No results found')) {
+                $response = [];
+            } else {
+                $decoded = json_decode($response);
+                $response = is_array($decoded) ? $decoded : ($decoded ? [$decoded] : []);
+            }
+        } elseif ($response instanceof stdClass) {
+            $response = [$response];
+        } elseif (!is_array($response)) {
+            $response = [];
+        }
+
+        $resultCount = count($response);
+
+        // If result limit of 400 or more is reached, subdivide the bounding box into smaller sections
+        if ($resultCount >= 400 && $depth < 10 && ($box['maxLat'] - $box['minLat'] > 0.02 || $box['maxLon'] - $box['minLon'] > 0.02)) {
+            echo '400 or more stations encountered, sub boxing...<br><br>';
+            $blocksBrokenCount++;
+
+            $midLat = floor((($box['minLat'] + $box['maxLat']) / 2.0) * 100) / 100;
+            $midLon = floor((($box['minLon'] + $box['maxLon']) / 2.0) * 100) / 100;
+
+            $subBoxes = [
+                ['minLat' => $box['minLat'], 'maxLat' => $midLat, 'minLon' => $box['minLon'], 'maxLon' => $midLon],
+                ['minLat' => $box['minLat'], 'maxLat' => $midLat, 'minLon' => $midLon, 'maxLon' => $box['maxLon']],
+                ['minLat' => $midLat, 'maxLat' => $box['maxLat'], 'minLon' => $box['minLon'], 'maxLon' => $midLon],
+                ['minLat' => $midLat, 'maxLat' => $box['maxLat'], 'minLon' => $midLon, 'maxLon' => $box['maxLon']],
+            ];
+
+            foreach ($subBoxes as $subBox) {
+                $this->processBoundingBox(
+                    $subBox,
+                    $stationsCachedCount,
+                    $blocksBrokenCount,
+                    $errors,
+                    $totalRequestTime,
+                    $requestCount,
+                    $uniqueStationIds,
+                    $depth + 1
+                );
+            }
+        } elseif ($resultCount > 0) {
+            try {
+                StationModel::cache($response);
+                foreach ($response as $station) {
+                    $id = $station->icaoId ?? $station->icao_id ?? $station->station_id ?? null;
+                    if ($id) {
+                        $uniqueStationIds[$id] = true;
+                    }
+                }
+                $stationsCachedCount += $resultCount;
+            } catch (Exception $e) {
+                ErrorLogModel::logError($e);
+                $errors[] = $e->getMessage();
+            }
+        }
+    }
+
 	/**
 	 * Calculates a bounding box in degrees of latitude and longitude based on a distance in miles
 	 * from a given geographic point.

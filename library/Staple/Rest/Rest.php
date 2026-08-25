@@ -57,10 +57,10 @@ class Rest
 	private static function getCurlObject(): Curl
 	{
 		$curl = new Curl();
-		$curl->setOpt(CURLOPT_SSLVERSION, 'CURL_SSLVERSION_TLSv1_2');
+		$curl->setOpt(CURLOPT_SSLVERSION, 'CURL_SSLVERSION_TLSv1_3');
 		$curl->setOpt(CURLOPT_SSL_CIPHER_LIST, implode(':',self::getCipherArray()));
-		$curl->setOpt(CURLOPT_SSL_VERIFYPEER, false);
-		//$curl->setOpt(CURLOPT_SSL_VERIFYHOST, 2);
+		$curl->setOpt(CURLOPT_SSL_VERIFYPEER, true);
+		$curl->setOpt(CURLOPT_SSL_VERIFYHOST, 2);
 		//$curl->setOpt(CURLOPT_CAINFO, FOLDER_ROOT.DIRECTORY_SEPARATOR.'certificate'.DIRECTORY_SEPARATOR.'openssl-cafile.pem');
 		return $curl;
 	}

@@ -57,6 +57,11 @@ class StationModel extends Model
 	{
 		foreach($stations as $station)
 		{
+            if (!$station->icaoId)
+            {
+                // Skip stations with no ICAO ID
+                continue;
+            }
 			$stationModel = new static(StationStruct::import($station));
 			try
 			{
